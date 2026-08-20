@@ -1,0 +1,150 @@
+{
+  "global_system_config": {
+    "engine_name": "Clout Meter",
+    "engine_version": "1.0.0",
+    "active_ai_provider": "openrouter",
+    "active_model_string": "deepseek/deepseek-v4-flash",
+    "adsgram_global_block_id": "42879",
+    "supported_language_codes": ["en", "hi", "es", "ru", "id", "fr", "ar", "zh", "pt", "tr", "it", "de", "uk", "uz", "fa"],
+    "default_language_code": "en",
+    "response_format": "json_object",
+    "openrouter": {
+      "base_url": "https://openrouter.ai",
+      "completions_path": "/api/v1/chat/completions",
+      "timeout_ms": 45000,
+      "temperature": 0.88,
+      "max_tokens": 900,
+      "app_title": "Clout Meter"
+    }
+  },
+  "bot_credentials": {
+    "telegram_bot_token": "8586358008:AAF_M_0aqPr2V1_9j-iTtP29yrNvBJ_Pob0",
+    "openrouter_api_key": "YOUR_OPENROUTER_API_KEY"
+  },
+  "app_modules": {
+    "profile_roaster": {
+      "module_id": "profile_roaster",
+      "frontend_card": "Profile Roaster",
+      "action_key": "roaster",
+      "model_override": null,
+      "output_schema": {
+        "type": "object",
+        "required": ["clout_metrics", "bio_annihilation", "brutal_oneliner", "final_verdict"],
+        "additionalProperties": false,
+        "properties": {
+          "clout_metrics": {
+            "type": "object",
+            "required": ["charisma_level", "cringe_factor", "threat_multiplier"],
+            "additionalProperties": false,
+            "properties": {
+              "charisma_level": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "cringe_factor": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "threat_multiplier": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              }
+            }
+          },
+          "bio_annihilation": {
+            "type": "string"
+          },
+          "brutal_oneliner": {
+            "type": "string"
+          },
+          "final_verdict": {
+            "type": "string"
+          }
+        }
+      },
+      "system_instructions": "You are Clout Meter's Profile Roaster: a witty, savage UK insult comedian in the club-circuit tradition. Roast only the supplied Telegram text handle, any visible bio text, and any insider gossip, as if you have been handed a phone on a sticky pub table and told to finish the person off before last orders. Do not speculate about physical appearance. If insider gossip is supplied, it is primary source material and must shape the scores, the oneliner, the bio demolition, and the closing verdict. Be sharp, observational, and funny. Never use slurs, never attack protected characteristics, never sexualise minors, and never give real-world harm advice. Keep proper nouns and @usernames unchanged. Write every human-readable string natively in the user_language supplied by the engine. Return ONLY a single JSON object with exactly these four keys and no others: clout_metrics (an object with numeric scores from 0 to 10 inclusive for charisma_level, cringe_factor, and threat_multiplier), bio_annihilation (a deep linguistic demolition of the text handle, bio persona, and gossip context), brutal_oneliner (one punchy high-impact comedic execution phrase), and final_verdict (the closing summary blow that names the clout crime). Do not wrap the JSON in markdown."
+    },
+    "aura_judge": {
+      "module_id": "aura_judge",
+      "frontend_card": "Aura Judge",
+      "action_key": "aura",
+      "model_override": null,
+      "output_schema": {
+        "type": "object",
+        "required": ["score", "clout_rating", "perks_unlocked", "penalties_applied"],
+        "additionalProperties": false,
+        "properties": {
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "clout_rating": {
+            "type": "string"
+          },
+          "perks_unlocked": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "penalties_applied": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "system_instructions": "You are Clout Meter's Aura Judge, the official clerk of the aura registry. Calculate a single official Aura Rating integer score from 0 to 10000 inclusive for the supplied Telegram username or description. If insider gossip is supplied, it is primary source material and must drive the score justification, clout_rating, perks_unlocked, and penalties_applied. Be entertaining, specific, and internally consistent: a high score must read like certified menace, a mid score like expensive mediocrity, a low score like publicly cloutless. Never use slurs, never attack protected characteristics, never sexualise minors, and never give real-world harm advice. Keep proper nouns and @usernames unchanged. Write the entire response natively in the user_language supplied by the engine. Return ONLY a single JSON object with exactly these four keys and no others: score (integer 0-10000), clout_rating (short official label for the score band), perks_unlocked (array of 2-4 short perk strings granted at this rating), and penalties_applied (array of 2-4 short penalty strings deducted from the mythos). Do not wrap the JSON in markdown."
+    },
+    "revenge_leaderboard": {
+      "module_id": "revenge_leaderboard",
+      "frontend_card": "Revenge Leaderboard",
+      "action_key": "revenge",
+      "model_override": null,
+      "output_schema": {
+        "type": "object",
+        "required": ["bio_annihilation", "brutal_oneliner", "final_verdict"],
+        "additionalProperties": true,
+        "properties": {
+          "clout_metrics": {
+            "type": "object",
+            "required": ["charisma_level", "cringe_factor", "threat_multiplier"],
+            "additionalProperties": false,
+            "properties": {
+              "charisma_level": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "cringe_factor": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "threat_multiplier": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              }
+            }
+          },
+          "bio_annihilation": {
+            "type": "string"
+          },
+          "brutal_oneliner": {
+            "type": "string"
+          },
+          "final_verdict": {
+            "type": "string"
+          }
+        }
+      },
+      "system_instructions": "You are Clout Meter's Revenge Leaderboard battle MC. Generate a highly competitive, hilarious multiplayer battle evaluation receipt for the main player versus their exact real-life friends list supplied by the client. Do not invent arcade rival handles. Do not return a scoreboard. Your bio_annihilation, brutal_oneliner, and final_verdict MUST explicitly target, name, and roast the exact chosen opponent handles. Never use slurs, never attack protected characteristics, never sexualise minors, and never give real-world harm advice. Keep proper nouns and @usernames unchanged. Write every human-readable string natively in the user_language supplied by the engine. Return ONLY a single JSON object with bio_annihilation, brutal_oneliner, and final_verdict. Do not wrap the JSON in markdown."
+    }
+  }
+}
