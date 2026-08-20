@@ -18,7 +18,7 @@
     }
   },
   "bot_credentials": {
-    "telegram_bot_token": "8586358008:AAF_M_0aqPr2V1_9j-iTtP29yrNvBJ_Pob0",
+    "telegram_bot_token": "",
     "openrouter_api_key": "YOUR_OPENROUTER_API_KEY"
   },
   "app_modules": {
