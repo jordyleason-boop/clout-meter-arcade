@@ -46,7 +46,12 @@ const LIMITS = Object.freeze({
 
 const PORT = Number.parseInt(process.env.PORT || "3000", 10);
 const FRONTEND_ORIGIN = String(process.env.FRONTEND_ORIGIN || "http://localhost:3000").trim().replace(/\/+$/, "");
-const TELEGRAM_BOT_TOKEN = resolveSecret(process.env.TELEGRAM_BOT_TOKEN, ENGINE_CONFIG.bot_credentials.telegram_bot_token);
+// Prefer process.env.TELEGRAM_BOT_TOKEN, then fall back to config.json bot credentials.
+const botToken = resolveSecret(
+  process.env.TELEGRAM_BOT_TOKEN,
+  ENGINE_CONFIG.bot_credentials && ENGINE_CONFIG.bot_credentials.telegram_bot_token
+);
+const TELEGRAM_BOT_TOKEN = botToken;
 const OPENROUTER_API_KEY = resolveSecret(process.env.OPENROUTER_API_KEY, ENGINE_CONFIG.bot_credentials.openrouter_api_key);
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").trim();
 const SUPABASE_KEY = String(process.env.SUPABASE_KEY || "").trim();
@@ -66,7 +71,7 @@ if (!/^https?:\/\/[^/\s]+$/i.test(FRONTEND_ORIGIN)) {
   process.exit(1);
 }
 
-if (!TELEGRAM_BOT_TOKEN || !/^\d+:[A-Za-z0-9_-]+$/.test(TELEGRAM_BOT_TOKEN)) {
+if (!botToken || !/^\d+:[A-Za-z0-9_-]+$/.test(botToken)) {
   console.warn("TELEGRAM_BOT_TOKEN is missing or malformed; Telegram auth checks are disabled for local testing.");
 }
 
@@ -1068,13 +1073,13 @@ app.post("/api/create-star-invoice", async (req, res) => {
       return;
     }
 
-    if (!TELEGRAM_BOT_TOKEN || !/^\d+:[A-Za-z0-9_-]+$/.test(TELEGRAM_BOT_TOKEN)) {
+    if (!botToken || !/^\d+:[A-Za-z0-9_-]+$/.test(botToken)) {
       res.status(503).json({ ok: false, error: "Telegram Stars billing is not configured" });
       return;
     }
 
     const initData = extractInitData(req);
-    const verified = verifyTelegramInitData(initData, TELEGRAM_BOT_TOKEN, INITDATA_MAX_AGE_SECONDS);
+    const verified = verifyTelegramInitData(initData, botToken, INITDATA_MAX_AGE_SECONDS);
     if (!verified.ok || !verified.user || verified.user.id == null) {
       res.status(401).json({
         ok: false,
@@ -2923,7 +2928,7 @@ async function loadLeaderboardRowsForTargetId({ telegramId, targetId }) {
 
 async function telegramBotApi(method, payload) {
   try {
-    if (!TELEGRAM_BOT_TOKEN || !/^\d+:[A-Za-z0-9_-]+$/.test(TELEGRAM_BOT_TOKEN)) {
+    if (!botToken || !/^\d+:[A-Za-z0-9_-]+$/.test(botToken)) {
       return { ok: false, error: "Telegram bot token is not configured" };
     }
     if (typeof method !== "string" || !/^[A-Za-z]+$/.test(method)) {
@@ -2933,7 +2938,7 @@ async function telegramBotApi(method, payload) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch(`${TELEGRAM_BOT_API_BASE}/bot${TELEGRAM_BOT_TOKEN}/${method}`, {
+      const response = await fetch(`${TELEGRAM_BOT_API_BASE}/bot${botToken}/${method}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload && typeof payload === "object" ? payload : {}),

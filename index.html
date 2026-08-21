@@ -41,7 +41,10 @@
       color: #f4f1ea;
       min-height: 100%;
       min-height: 100dvh;
+      height: auto;
       overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     body {
@@ -73,7 +76,7 @@
       border: 1px solid rgba(0, 240, 255, 0.25);
       border-radius: 1.5rem;
       box-shadow: inset 0 0 40px rgba(255, 0, 170, 0.15), 0 0 45px rgba(0, 240, 255, 0.12);
-      overflow: hidden;
+      overflow: visible;
     }
 
     .arcade-screen::before {
@@ -315,6 +318,11 @@
       visibility: hidden;
       pointer-events: none;
       transition: opacity 280ms ease;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      align-items: flex-start;
+      justify-content: center;
     }
 
     .modal-backdrop.open {
@@ -325,13 +333,89 @@
     }
 
     .sheet {
-      transform: translateY(110%);
+      transform: translateY(24px);
       transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
       box-shadow: inset 0 0 0 1px rgba(255, 0, 170, 0.35), 0 24px 46px rgba(0, 0, 0, 0.58), 0 0 28px rgba(255, 0, 170, 0.2);
     }
 
     .modal-backdrop.open .sheet {
       transform: translateY(0);
+    }
+
+    /* Mini-game viewport: scrollable on Telegram mobile, no fixed height lock */
+    .mini-game-shell {
+      width: 100%;
+      max-width: 28rem;
+      margin-left: auto;
+      margin-right: auto;
+      min-height: 100dvh;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: stretch;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      padding: 1.5rem 1rem 3rem;
+      position: relative;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 0, 170, 0.55) rgba(0, 0, 0, 0.25);
+    }
+
+    .mini-game-shell::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .mini-game-shell::-webkit-scrollbar-thumb {
+      background: rgba(255, 0, 170, 0.55);
+      border-radius: 999px;
+    }
+
+    @media (min-width: 768px) {
+      .mini-game-shell {
+        min-height: 0;
+        max-height: min(92dvh, 920px);
+        margin-top: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-radius: 1.5rem;
+      }
+    }
+
+    .neon-close-btn {
+      display: grid;
+      place-items: center;
+      width: 2.35rem;
+      height: 2.35rem;
+      flex-shrink: 0;
+      border-radius: 9999px;
+      border: 1px solid rgba(255, 64, 196, 0.85);
+      background: rgba(28, 4, 24, 0.92);
+      color: #ff4fd8;
+      font-size: 1.15rem;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 0 16px rgba(255, 0, 170, 0.55), inset 0 0 0 1px rgba(255, 180, 240, 0.25);
+      transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+      z-index: 5;
+    }
+
+    .neon-close-btn:hover,
+    .neon-close-btn:focus-visible {
+      transform: scale(1.06);
+      filter: brightness(1.15);
+      box-shadow: 0 0 22px rgba(255, 0, 170, 0.8), inset 0 0 0 1px rgba(255, 200, 245, 0.4);
+      outline: none;
+    }
+
+    .module-result-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      width: 100%;
+      margin-bottom: 0.35rem;
     }
 
     #result-frost-wrap.hidden,
@@ -748,8 +832,8 @@
   </style>
 </head>
 <body class="app-bg antialiased">
-  <div class="arcade-screen relative z-10 mx-auto w-full max-w-app px-4 pb-10 pt-3 sm:px-6 lg:px-8">
-    <header id="app-header" class="mb-6 rounded-2xl border border-cyan-300/35 bg-[#090916]/85 px-3 py-3 backdrop-blur-md sm:px-4">
+  <div id="arcade-cabinet" class="arcade-screen relative z-10 mx-auto flex w-full max-w-md flex-col items-center justify-start overflow-y-auto px-4 pb-12 pt-6 scrollbar-thin md:min-h-0 md:max-w-app sm:px-6 lg:px-8">
+    <header id="app-header" class="mb-6 w-full rounded-2xl border border-cyan-300/35 bg-[#090916]/85 px-3 py-3 backdrop-blur-md sm:px-4">
       <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex min-w-0 items-center gap-3">
         <div class="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-fuchsia-500 font-display text-sm font-extrabold text-[#04030a] shadow-[0_0_18px_rgba(0,240,255,0.45)]">CM</div>
@@ -786,7 +870,7 @@
       </div>
     </header>
 
-    <section class="mb-6 rounded-3xl border border-fuchsia-400/35 bg-[#0b0820]/78 p-4 backdrop-blur-md sm:p-5">
+    <section class="mb-6 w-full rounded-3xl border border-fuchsia-400/35 bg-[#0b0820]/78 p-4 backdrop-blur-md sm:p-5">
       <p data-i18n="onboardingTitle" class="mb-3 text-[11px] font-semibold uppercase tracking-[0.25em] text-cyan-200">How Clout Meter Works</p>
       <ul class="space-y-2 text-sm leading-relaxed text-white/75">
         <li data-i18n="onboardingPoint1" class="rounded-xl border border-white/10 bg-black/25 px-3 py-2">Scan any Telegram handle in seconds.</li>
@@ -795,7 +879,7 @@
       </ul>
     </section>
 
-    <section id="hub-grid" class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
+    <section id="hub-grid" class="grid w-full grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
       <button type="button" data-hub="profile_roaster" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-left md:min-h-[280px] md:p-6">
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-orange-500/20 blur-2xl transition group-hover:bg-orange-400/30"></div>
         <div class="relative">
@@ -827,22 +911,22 @@
       </button>
     </section>
 
-    <footer class="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-fuchsia-400/20 pt-4 text-xs uppercase tracking-[0.16em]">
+    <footer class="mt-8 flex w-full flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-fuchsia-400/20 pt-4 text-xs uppercase tracking-[0.16em]">
       <button id="open-disclaimer" type="button" class="compliance-link">Disclaimer</button>
       <button id="open-privacy" type="button" class="compliance-link">Privacy Policy</button>
       <button id="open-support" type="button" class="compliance-link">Get Support</button>
     </footer>
   </div>
 
-  <div id="hub-modal" class="modal-backdrop fixed inset-0 z-40 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-6" aria-hidden="true">
-    <div class="sheet w-full max-w-lg rounded-t-3xl border border-fuchsia-400/45 bg-[#090716] px-5 pb-6 pt-4 shadow-2xl sm:rounded-3xl sm:px-6">
-      <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/15 sm:hidden"></div>
-      <div class="mb-4 flex items-start justify-between gap-3">
-        <div>
+  <div id="hub-modal" class="modal-backdrop fixed inset-0 z-40 flex justify-center bg-black/70 p-0 backdrop-blur-sm" aria-hidden="true">
+    <div class="sheet mini-game-shell w-full max-w-md mx-auto min-h-screen md:min-h-0 flex flex-col justify-start items-stretch overflow-y-auto px-4 pb-12 pt-6 border border-fuchsia-400/45 bg-[#090716] shadow-2xl scrollbar-thin">
+      <div class="mx-auto mb-3 h-1.5 w-12 rounded-full bg-white/15 sm:hidden"></div>
+      <div class="mb-4 flex w-full items-start justify-between gap-3">
+        <div class="min-w-0 pr-2">
           <p id="modal-kicker" class="text-[11px] uppercase tracking-[0.22em] text-gold/80">Clout Meter</p>
           <h3 id="modal-title" class="font-display text-2xl font-extrabold">Profile Roaster</h3>
         </div>
-        <button id="close-hub-modal" type="button" class="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/5 text-lg text-white/70" aria-label="Close">×</button>
+        <button id="close-hub-modal" type="button" class="neon-close-btn" aria-label="Close mini-game and return to arcade cabinet" title="Close">✕</button>
       </div>
 
       <div id="standard-target-panel">
@@ -922,6 +1006,9 @@
         <div id="result-frost-wrap" class="hidden rounded-2xl backdrop-blur-xl bg-zinc-900/80 transition-all duration-500 ease-in-out">
           <div id="result-panel" class="space-y-3 p-3 sm:p-4">
         <div id="result-profile_roaster" class="module-result hidden space-y-3">
+          <div class="module-result-toolbar">
+            <button type="button" class="neon-close-btn mini-game-close-btn" data-close-mini-game="profile_roaster" aria-label="Close Profile Roaster" title="Close">✕</button>
+          </div>
           <div class="flex items-center gap-2 rounded-xl border border-gold/35 bg-black/35 px-3 py-2">
             <span id="slot-roast-handle" class="min-w-0 truncate font-display text-sm font-extrabold tracking-wide text-cyan-100">@unknown</span>
             <span data-gold-pass-badge class="gold-pass-badge rounded-full px-2 py-0.5 font-display text-[9px] font-extrabold uppercase tracking-[0.14em]">👑 GOLD PASS</span>
@@ -958,6 +1045,9 @@
         </div>
 
         <div id="result-aura_judge" class="module-result hidden space-y-3">
+          <div class="module-result-toolbar">
+            <button type="button" class="neon-close-btn mini-game-close-btn" data-close-mini-game="aura_judge" aria-label="Close Aura Judge" title="Close">✕</button>
+          </div>
           <div id="aura-receipt" class="rounded-2xl border border-white/30 bg-[linear-gradient(180deg,#f4f4f4,#ececec)] p-4 text-[#0e0e10] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]">
             <div class="receipt-serrated mb-2"></div>
             <div class="border-b border-dashed border-black/35 pb-2 text-center">
@@ -996,6 +1086,9 @@
         </div>
 
         <div id="result-revenge_leaderboard" class="module-result hidden space-y-3">
+          <div class="module-result-toolbar">
+            <button type="button" class="neon-close-btn mini-game-close-btn" data-close-mini-game="revenge_leaderboard" aria-label="Close Revenge Leaderboard" title="Close">✕</button>
+          </div>
           <div class="scoreboard-cabinet rounded-2xl px-3 py-3 sm:px-4 sm:py-4">
             <p class="scoreboard-marquee mb-3 text-center font-display text-[11px] font-extrabold uppercase">Multiplayer Battle Receipt</p>
             <div class="scoreboard-head pb-2 font-display text-[8px] md:text-[9px] font-extrabold uppercase tracking-[0.12em]">
@@ -1033,7 +1126,7 @@
         <button id="watch-ad-btn" type="button" class="mt-3 w-full rounded-xl border border-sky-400/30 bg-sky-400/10 py-2.5 text-sm font-semibold text-sky-200">
           <span data-i18n="watchAd">Watch Ad</span>
         </button>
-        <pre id="adsgram-log" class="mt-3 max-h-20 overflow-auto text-[11px] leading-relaxed text-white/35">AdsGram listeners ready: onReward, onError</pre>
+        <pre id="adsgram-log" class="mt-3 max-h-20 overflow-auto text-[11px] leading-relaxed text-white/35">AdsGram listeners ready: onReward, onSkip, onError</pre>
       </div>
     </div>
   </div>
@@ -1223,7 +1316,7 @@
           scanningLabel: "Scanning aura…",
           paymentSuccess: "Premium unlocked. Ads are cleared for this All-Access window.",
           alreadyPremium: "You already run Premium.",
-          adReady: "AdsGram listeners ready: onReward, onError",
+          adReady: "AdsGram listeners ready: onReward, onSkip, onError",
           adReward: "onReward: +1 Arcade Coin deposited via /api/reward-ad.",
           adError: "onError: rewarded video failed to complete",
           adWatching: "Playing rewarded video…",
@@ -1584,6 +1677,7 @@
         pendingRoastPayload: null,
         pendingRevengePayload: null,
         pendingCloutMetrics: null,
+        telegramBackButtonHandler: null,
         scoreboardPaintGeneration: 0
       };
 
@@ -2590,6 +2684,123 @@
         el.style.pointerEvents = "auto";
       }
 
+      function hideTelegramBackButton() {
+        try {
+          var webApp = (tg && tg.BackButton)
+            ? tg
+            : (window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null);
+          if (!webApp || !webApp.BackButton) return;
+          if (typeof webApp.BackButton.offClick === "function" && state.telegramBackButtonHandler) {
+            webApp.BackButton.offClick(state.telegramBackButtonHandler);
+          }
+          if (typeof webApp.BackButton.hide === "function") {
+            webApp.BackButton.hide();
+          }
+        } catch (_err) {}
+      }
+
+      function showTelegramBackButton() {
+        try {
+          var webApp = (tg && tg.BackButton)
+            ? tg
+            : (window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null);
+          if (!webApp || !webApp.BackButton) return;
+          if (typeof state.telegramBackButtonHandler !== "function") {
+            state.telegramBackButtonHandler = function () {
+              resetMiniGameToCabinet();
+            };
+          }
+          if (typeof webApp.BackButton.offClick === "function") {
+            webApp.BackButton.offClick(state.telegramBackButtonHandler);
+          }
+          if (typeof webApp.BackButton.onClick === "function") {
+            webApp.BackButton.onClick(state.telegramBackButtonHandler);
+          }
+          if (typeof webApp.BackButton.show === "function") {
+            webApp.BackButton.show();
+          }
+        } catch (_err) {}
+      }
+
+      function resetMiniGameToCabinet() {
+        try {
+          if (state.pendingTarget) {
+            abortProcess();
+          } else {
+            stopScan();
+          }
+        } catch (_abortErr) {}
+
+        try {
+          hideResults();
+          clearRevengeScoreboardView();
+          state.pendingResult = null;
+          state.pendingError = null;
+          state.pendingTarget = null;
+          state.pendingRevengePayload = null;
+          state.revengeBattleContext = null;
+          unlockLockButton();
+          setStatus("");
+        } catch (_resetErr) {}
+
+        closeModal(document.getElementById("hub-modal"));
+        hideTelegramBackButton();
+
+        var hubGrid = document.getElementById("hub-grid");
+        var cabinet = document.getElementById("arcade-cabinet");
+        if (hubGrid) {
+          hubGrid.classList.remove("hidden");
+          hubGrid.style.display = "";
+          hubGrid.style.visibility = "visible";
+          hubGrid.style.opacity = "1";
+          hubGrid.style.pointerEvents = "auto";
+        }
+        if (cabinet) {
+          cabinet.classList.remove("hidden");
+          cabinet.style.display = "";
+          cabinet.style.visibility = "visible";
+          try {
+            cabinet.scrollIntoView({ behavior: "smooth", block: "start" });
+          } catch (_scrollErr) {}
+        }
+        try {
+          window.scrollTo(0, 0);
+        } catch (_winScrollErr) {}
+      }
+
+      function openMiniGameFromCabinet(hubId) {
+        state.hub = hubId;
+        state.gateToken += 1;
+        state.pendingTarget = null;
+        stopScan();
+        resetScanVisual();
+        hideResults();
+        clearRevengeScoreboardView();
+        state.pendingResult = null;
+        state.pendingError = null;
+        unlockLockButton();
+        setStatus("");
+        syncModalCopy();
+        clearPickedChat();
+        clearRevengeOpponentInputs();
+        state.revengeBattleContext = null;
+        state.pendingRevengePayload = null;
+        refreshRevengeSelfHandle();
+        syncRevengeSetupVisibility();
+        haptic("light");
+        var hubModal = document.getElementById("hub-modal");
+        openModal(hubModal);
+        syncInsiderGossipVisibility();
+        showTelegramBackButton();
+        try {
+          if (hubModal && typeof hubModal.scrollTop === "number") {
+            hubModal.scrollTop = 0;
+          }
+          var shell = hubModal ? hubModal.querySelector(".mini-game-shell") : null;
+          if (shell) shell.scrollTop = 0;
+        } catch (_scrollOpenErr) {}
+      }
+
       function purgeBlockingLayers() {
         try {
           var modalIds = ["hub-modal", "premium-modal", "arcade-coin-modal", "disclaimer-modal", "privacy-modal", "support-modal"];
@@ -2597,6 +2808,7 @@
           for (m = 0; m < modalIds.length; m += 1) {
             closeModal(document.getElementById(modalIds[m]));
           }
+          hideTelegramBackButton();
           var frost = document.getElementById("result-frost-wrap");
           var overlay = document.getElementById("scratch-overlay");
           var skipBtn = document.getElementById("skip-scratch-btn");
@@ -4897,14 +5109,14 @@
         document.getElementById("adsgram-log").textContent = message;
       }
 
-      function onAdsReward(rewarded) {
-        if (typeof rewarded === "boolean" && rewarded !== true) {
+      function onAdsReward(result) {
+        if (typeof result === "boolean" && result !== true) {
           onAdsError({ message: "reward not granted" });
           return;
         }
         logAds(t("adReward"));
         haptic("success");
-        // Secure backend deposit: +1 credit into public.users.credits_balance
+        // Secure backend deposit: POST /api/reward-ad → +1 credits_balance
         claimRewardedAdArcadeCredit();
         if (state.pendingTarget) {
           consumeReward(state.pendingTarget);
@@ -4931,11 +5143,16 @@
       function bindAdController(controller) {
         AdController = controller;
         if (!AdController || typeof AdController.addEventListener !== "function") return;
-        AdController.addEventListener("onReward", onAdsReward);
-        AdController.addEventListener("onError", onAdsError);
-        AdController.addEventListener("onSkip", onAdsSkip);
-        AdController.addEventListener("onClose", function () {
-          if (state.pendingTarget) onAdsSkip();
+        // Adsgram only accepts verified event names: onReward, onError, onSkip.
+        // Do NOT register onClose — it is rejected by the Adsgram platform framework.
+        AdController.addEventListener("onReward", function (result) {
+          onAdsReward(result);
+        });
+        AdController.addEventListener("onError", function (error) {
+          onAdsError(error);
+        });
+        AdController.addEventListener("onSkip", function () {
+          onAdsSkip();
         });
       }
 
@@ -5225,6 +5442,8 @@
           if (typeof tg.onEvent === "function") {
             tg.onEvent("chatRequested", onChatRequested);
           }
+          // Keep native BackButton hidden until a mini-game is opened.
+          hideTelegramBackButton();
         } catch (err) {}
       }
 
@@ -5783,41 +6002,23 @@
 
       document.querySelectorAll("[data-hub]").forEach(function (card) {
         card.addEventListener("click", function () {
-          state.hub = card.getAttribute("data-hub");
-          state.gateToken += 1;
-          state.pendingTarget = null;
-          stopScan();
-          resetScanVisual();
-          hideResults();
-          clearRevengeScoreboardView();
-          state.pendingResult = null;
-          state.pendingError = null;
-          unlockLockButton();
-          setStatus("");
-          syncModalCopy();
-          clearPickedChat();
-          clearRevengeOpponentInputs();
-          state.revengeBattleContext = null;
-          state.pendingRevengePayload = null;
-          refreshRevengeSelfHandle();
-          syncRevengeSetupVisibility();
-          haptic("light");
-          var hubModal = document.getElementById("hub-modal");
-          openModal(hubModal);
-          syncInsiderGossipVisibility();
+          openMiniGameFromCabinet(card.getAttribute("data-hub"));
         });
       });
 
       document.getElementById("close-hub-modal").addEventListener("click", function () {
-        if (state.pendingTarget) abortProcess();
-        else stopScan();
-        closeModal(document.getElementById("hub-modal"));
+        resetMiniGameToCabinet();
+      });
+      document.querySelectorAll(".mini-game-close-btn, [data-close-mini-game]").forEach(function (btn) {
+        btn.addEventListener("click", function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          resetMiniGameToCabinet();
+        });
       });
       document.getElementById("hub-modal").addEventListener("click", function (event) {
         if (event.target === event.currentTarget) {
-          if (state.pendingTarget) abortProcess();
-          else stopScan();
-          closeModal(event.currentTarget);
+          resetMiniGameToCabinet();
         }
       });
       document.getElementById("lock-btn").addEventListener("pointerdown", function () {
