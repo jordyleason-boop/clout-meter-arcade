@@ -42,15 +42,38 @@
       min-height: 100%;
       min-height: 100dvh;
       height: auto;
+      max-height: none;
       overflow-x: hidden;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      overscroll-behavior-y: auto;
     }
 
     body {
       font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
       padding-top: var(--tg-safe-top);
       padding-bottom: var(--tg-safe-bottom);
+      position: relative;
+      width: 100%;
+    }
+
+    /* Primary document scroll wrapper — never lock height to the viewport */
+    #app-scroll-root {
+      width: 100%;
+      min-height: 100dvh;
+      min-height: 100vh;
+      height: auto;
+      max-height: none;
+      overflow-x: hidden;
+      overflow-y: visible;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      padding: 1rem 1rem 5rem;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
     }
 
     .app-bg {
@@ -73,10 +96,16 @@
 
     .arcade-screen {
       position: relative;
+      width: 100%;
+      max-width: 72rem;
+      height: auto;
+      min-height: 0;
+      max-height: none;
       border: 1px solid rgba(0, 240, 255, 0.25);
       border-radius: 1.5rem;
       box-shadow: inset 0 0 40px rgba(255, 0, 170, 0.15), 0 0 45px rgba(0, 240, 255, 0.12);
       overflow: visible;
+      touch-action: pan-y;
     }
 
     .arcade-screen::before {
@@ -318,11 +347,16 @@
       visibility: hidden;
       pointer-events: none;
       transition: opacity 280ms ease;
+      /* Backdrop is the scrollport for mini-games — content grows naturally inside */
+      overflow-x: hidden;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
+      overscroll-behavior-y: auto;
+      touch-action: pan-y;
       align-items: flex-start;
       justify-content: center;
+      height: auto;
+      max-height: none;
     }
 
     .modal-backdrop.open {
@@ -333,54 +367,53 @@
     }
 
     .sheet {
-      transform: translateY(24px);
-      transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+      transform: none;
+      transition: opacity 280ms ease, transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
       box-shadow: inset 0 0 0 1px rgba(255, 0, 170, 0.35), 0 24px 46px rgba(0, 0, 0, 0.58), 0 0 28px rgba(255, 0, 170, 0.2);
     }
 
     .modal-backdrop.open .sheet {
-      transform: translateY(0);
+      transform: none;
     }
 
-    /* Mini-game viewport: scrollable on Telegram mobile, no fixed height lock */
+    /* Mini-game card: natural content height — parent modal scrolls */
     .mini-game-shell {
       width: 100%;
       max-width: 28rem;
+      height: auto;
+      min-height: 0;
+      max-height: none;
       margin-left: auto;
       margin-right: auto;
-      min-height: 100dvh;
-      min-height: 100vh;
+      margin-top: 0;
+      margin-bottom: 0;
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
       align-items: stretch;
-      overflow-y: auto;
-      overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-      padding: 1.5rem 1rem 3rem;
+      overflow: visible;
+      padding: 1.5rem 1rem 5rem;
       position: relative;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255, 0, 170, 0.55) rgba(0, 0, 0, 0.25);
-    }
-
-    .mini-game-shell::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    .mini-game-shell::-webkit-scrollbar-thumb {
-      background: rgba(255, 0, 170, 0.55);
-      border-radius: 999px;
+      flex: 0 0 auto;
+      touch-action: pan-y;
     }
 
     @media (min-width: 768px) {
       .mini-game-shell {
-        min-height: 0;
-        max-height: min(92dvh, 920px);
         margin-top: 1.5rem;
         margin-bottom: 1.5rem;
         border-radius: 1.5rem;
       }
+    }
+
+    .module-result {
+      height: auto;
+      min-height: 0;
+      width: 100%;
+      max-width: 28rem;
+      display: flex;
+      flex-direction: column;
+      overflow: visible;
     }
 
     .neon-close-btn {
@@ -831,8 +864,9 @@
     }
   </style>
 </head>
-<body class="app-bg antialiased">
-  <div id="arcade-cabinet" class="arcade-screen relative z-10 mx-auto flex w-full max-w-md flex-col items-center justify-start overflow-y-auto px-4 pb-12 pt-6 scrollbar-thin md:min-h-0 md:max-w-app sm:px-6 lg:px-8">
+<body class="app-bg antialiased min-h-screen w-full overflow-y-auto overflow-x-hidden">
+  <div id="app-scroll-root" class="min-h-screen w-full overflow-x-hidden flex flex-col justify-start items-center px-4 pt-4 pb-20 scrollbar-thin">
+  <div id="arcade-cabinet" class="arcade-screen relative z-10 mx-auto flex h-auto min-h-0 w-full max-w-md flex-col items-center justify-start overflow-visible px-4 pb-12 pt-6 md:max-w-app sm:px-6 lg:px-8">
     <header id="app-header" class="mb-6 w-full rounded-2xl border border-cyan-300/35 bg-[#090916]/85 px-3 py-3 backdrop-blur-md sm:px-4">
       <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex min-w-0 items-center gap-3">
@@ -917,10 +951,11 @@
       <button id="open-support" type="button" class="compliance-link">Get Support</button>
     </footer>
   </div>
+  </div>
 
-  <div id="hub-modal" class="modal-backdrop fixed inset-0 z-40 flex justify-center bg-black/70 p-0 backdrop-blur-sm" aria-hidden="true">
-    <div class="sheet mini-game-shell w-full max-w-md mx-auto min-h-screen md:min-h-0 flex flex-col justify-start items-stretch overflow-y-auto px-4 pb-12 pt-6 border border-fuchsia-400/45 bg-[#090716] shadow-2xl scrollbar-thin">
-      <div class="mx-auto mb-3 h-1.5 w-12 rounded-full bg-white/15 sm:hidden"></div>
+  <div id="hub-modal" class="modal-backdrop fixed inset-0 z-40 flex justify-center overflow-y-auto overflow-x-hidden bg-black/70 p-0 backdrop-blur-sm" aria-hidden="true">
+    <div class="sheet mini-game-shell h-auto min-h-0 w-full max-w-md mx-auto flex flex-col justify-start items-center overflow-visible px-4 pt-6 pb-20 border border-fuchsia-400/45 bg-[#090716] shadow-2xl">
+      <div class="mx-auto mb-3 h-1.5 w-12 shrink-0 rounded-full bg-white/15 sm:hidden"></div>
       <div class="mb-4 flex w-full items-start justify-between gap-3">
         <div class="min-w-0 pr-2">
           <p id="modal-kicker" class="text-[11px] uppercase tracking-[0.22em] text-gold/80">Clout Meter</p>
@@ -1005,7 +1040,7 @@
       <div class="scratch-zone mb-4">
         <div id="result-frost-wrap" class="hidden rounded-2xl backdrop-blur-xl bg-zinc-900/80 transition-all duration-500 ease-in-out">
           <div id="result-panel" class="space-y-3 p-3 sm:p-4">
-        <div id="result-profile_roaster" class="module-result hidden space-y-3">
+        <div id="result-profile_roaster" class="module-result hidden h-auto min-h-0 w-full max-w-md flex flex-col space-y-3">
           <div class="module-result-toolbar">
             <button type="button" class="neon-close-btn mini-game-close-btn" data-close-mini-game="profile_roaster" aria-label="Close Profile Roaster" title="Close">✕</button>
           </div>
@@ -1044,7 +1079,7 @@
           </article>
         </div>
 
-        <div id="result-aura_judge" class="module-result hidden space-y-3">
+        <div id="result-aura_judge" class="module-result hidden h-auto min-h-0 w-full max-w-md flex flex-col space-y-3">
           <div class="module-result-toolbar">
             <button type="button" class="neon-close-btn mini-game-close-btn" data-close-mini-game="aura_judge" aria-label="Close Aura Judge" title="Close">✕</button>
           </div>
@@ -1085,7 +1120,7 @@
           </button>
         </div>
 
-        <div id="result-revenge_leaderboard" class="module-result hidden space-y-3">
+        <div id="result-revenge_leaderboard" class="module-result hidden h-auto min-h-0 w-full max-w-md flex flex-col space-y-3">
           <div class="module-result-toolbar">
             <button type="button" class="neon-close-btn mini-game-close-btn" data-close-mini-game="revenge_leaderboard" aria-label="Close Revenge Leaderboard" title="Close">✕</button>
           </div>
@@ -2682,6 +2717,14 @@
         el.style.visibility = "visible";
         el.style.opacity = "1";
         el.style.pointerEvents = "auto";
+        // Keep modal backdrops as the active scrollport on mobile Telegram.
+        if (el.id === "hub-modal") {
+          el.style.overflowY = "auto";
+          el.style.overflowX = "hidden";
+          el.style.webkitOverflowScrolling = "touch";
+          el.style.touchAction = "pan-y";
+          el.scrollTop = 0;
+        }
       }
 
       function hideTelegramBackButton() {
@@ -5438,7 +5481,10 @@
           if (typeof tg.expand === "function") tg.expand();
           if (typeof tg.setHeaderColor === "function") tg.setHeaderColor("#050508");
           if (typeof tg.setBackgroundColor === "function") tg.setBackgroundColor("#050508");
-          if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+          // Do NOT call disableVerticalSwipes — it freezes document/touch scrolling on mobile Telegram.
+          if (typeof tg.enableVerticalSwipes === "function") {
+            tg.enableVerticalSwipes();
+          }
           if (typeof tg.onEvent === "function") {
             tg.onEvent("chatRequested", onChatRequested);
           }
