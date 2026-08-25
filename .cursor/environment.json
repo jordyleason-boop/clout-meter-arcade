@@ -1,0 +1,17 @@
+{
+  "name": "Clout Meter Arcade",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "server",
+      "command": "node server.js",
+      "description": "Clout Meter Express API and Telegram Mini App frontend, served on port 3000."
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 3000
+    }
+  ]
+}
