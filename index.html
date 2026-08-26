@@ -2791,6 +2791,7 @@
 
         var hubGrid = document.getElementById("hub-grid");
         var cabinet = document.getElementById("arcade-cabinet");
+        var mainMenu = document.getElementById("main-menu") || cabinet;
         if (hubGrid) {
           hubGrid.classList.remove("hidden");
           hubGrid.style.display = "";
@@ -2806,9 +2807,16 @@
             cabinet.scrollIntoView({ behavior: "smooth", block: "start" });
           } catch (_scrollErr) {}
         }
+        if (mainMenu) {
+          mainMenu.classList.remove("hidden");
+          mainMenu.style.display = "block";
+          mainMenu.style.pointerEvents = "auto";
+          mainMenu.style.opacity = "1";
+        }
         try {
           window.scrollTo(0, 0);
         } catch (_winScrollErr) {}
+        syncTokens();
       }
 
       function openMiniGameFromCabinet(hubId) {
@@ -3918,6 +3926,10 @@
         } catch (err) {
           return Promise.resolve();
         }
+      }
+
+      function syncTokens() {
+        return syncCloudSession();
       }
 
       function persistEnergyToCloud() {
