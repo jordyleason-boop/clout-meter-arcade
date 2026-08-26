@@ -4464,6 +4464,10 @@
         var safeName = rawName.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "player";
 
         function triggerCompiledDownload(canvasOrBlobDataUrl) {
+          if (!canvasOrBlobDataUrl || canvasOrBlobDataUrl === "data:," || canvasOrBlobDataUrl === "data:") {
+            setStatus(t("receiptSaveFailed"));
+            return false;
+          }
           const link = document.createElement('a');
           link.download = `aura-receipt-${tgUser.username || safeName}.png`;
           link.href = canvasOrBlobDataUrl;
@@ -4471,14 +4475,49 @@
           link.click();
           document.body.removeChild(link);
           setStatus(t("receiptSaved"));
+          return true;
+        }
+
+        function downloadFromCanvas(canvas, allowFallback) {
+          if (!canvas) {
+            setStatus(t("receiptSaveFailed"));
+            return;
+          }
+          if (typeof canvas.toBlob === "function") {
+            canvas.toBlob(function (blob) {
+              if (blob && blob.size > 0) {
+                var objectUrl = URL.createObjectURL(blob);
+                triggerCompiledDownload(objectUrl);
+                setTimeout(function () {
+                  URL.revokeObjectURL(objectUrl);
+                }, 1500);
+                return;
+              }
+              var dataUrl = "";
+              try {
+                dataUrl = canvas.toDataURL("image/png");
+              } catch (_toDataErr) {}
+              if (!triggerCompiledDownload(dataUrl)) {
+                if (allowFallback !== false) snapshotViaCanvasElement();
+                else setStatus(t("receiptSaveFailed"));
+              }
+            }, "image/png");
+            return;
+          }
+          try {
+            if (!triggerCompiledDownload(canvas.toDataURL("image/png")) && allowFallback !== false) {
+              snapshotViaCanvasElement();
+            }
+          } catch (_drawErr) {
+            if (allowFallback !== false) snapshotViaCanvasElement();
+            else setStatus(t("receiptSaveFailed"));
+          }
         }
 
         function snapshotViaCanvasElement() {
-          var width = Math.max(1, target.scrollWidth || target.offsetWidth || 360);
-          var height = Math.max(1, target.scrollHeight || target.offsetHeight || 480);
           var canvas = document.createElement("canvas");
-          canvas.width = width * 2;
-          canvas.height = height * 2;
+          canvas.width = 720;
+          canvas.height = 1040;
           var ctx = canvas.getContext("2d");
           if (!ctx) {
             setStatus(t("receiptSaveFailed"));
@@ -4486,48 +4525,24 @@
           }
           ctx.fillStyle = "#f2f2f2";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.scale(2, 2);
-          var html = "<html><head><meta charset='utf-8'></head><body style='margin:0;background:#f2f2f2'>" + target.outerHTML + "</body></html>";
-          var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='" + width + "' height='" + height + "'>" +
-            "<foreignObject width='100%' height='100%'>" +
-            "<div xmlns='http://www.w3.org/1999/xhtml'>" + html + "</div>" +
-            "</foreignObject></svg>";
-          var image = new Image();
-          image.onload = function () {
-            try {
-              ctx.drawImage(image, 0, 0, width, height);
-            } catch (_drawErr) {}
-            canvas.toBlob(function (blob) {
-              if (blob) {
-                var objectUrl = URL.createObjectURL(blob);
-                triggerCompiledDownload(objectUrl);
-                setTimeout(function () {
-                  URL.revokeObjectURL(objectUrl);
-                }, 1500);
-                return;
-              }
-              triggerCompiledDownload(canvas.toDataURL("image/png"));
-            }, "image/png");
-          };
-          image.onerror = function () {
-            triggerCompiledDownload(canvas.toDataURL("image/png"));
-          };
-          image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+          ctx.fillStyle = "#111111";
+          ctx.font = "bold 28px sans-serif";
+          ctx.fillText("Clout Meter Aura Receipt", 36, 64);
+          var bodyText = String(target.innerText || target.textContent || "Aura receipt").replace(/\s+\n/g, "\n");
+          var lines = bodyText.split("\n");
+          ctx.font = "16px monospace";
+          var y = 110;
+          var i;
+          for (i = 0; i < lines.length && y < canvas.height - 40; i += 1) {
+            ctx.fillText(String(lines[i]).slice(0, 56), 36, y);
+            y += 22;
+          }
+          downloadFromCanvas(canvas, false);
         }
 
         if (typeof html2canvas === "function") {
           html2canvas(target, { backgroundColor: "#f2f2f2", scale: 2, useCORS: true }).then(function (canvas) {
-            canvas.toBlob(function (blob) {
-              if (blob) {
-                var objectUrl = URL.createObjectURL(blob);
-                triggerCompiledDownload(objectUrl);
-                setTimeout(function () {
-                  URL.revokeObjectURL(objectUrl);
-                }, 1500);
-                return;
-              }
-              triggerCompiledDownload(canvas.toDataURL("image/png"));
-            }, "image/png");
+            downloadFromCanvas(canvas);
           }).catch(function () {
             snapshotViaCanvasElement();
           });
