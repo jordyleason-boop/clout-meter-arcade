@@ -372,8 +372,11 @@
       box-shadow: inset 0 0 0 1px rgba(255, 0, 170, 0.35), 0 24px 46px rgba(0, 0, 0, 0.58), 0 0 28px rgba(255, 0, 170, 0.2);
     }
 
-    .modal-backdrop.open .sheet {
-      transform: none;
+    #receipt-save-image {
+      -webkit-touch-callout: default;
+      -webkit-user-select: auto;
+      user-select: auto;
+      pointer-events: auto;
     }
 
     /* Mini-game card: natural content height — parent modal scrolls */
@@ -1257,6 +1260,17 @@
       </div>
       <p id="arcade-coin-status" class="mb-3 min-h-[1.25rem] text-center text-sm text-fuchsia-200/85"></p>
       <button id="close-arcade-coin" type="button" class="w-full rounded-2xl border border-white/15 py-3 text-sm text-white/70">
+        Close
+      </button>
+    </div>
+  </div>
+
+  <div id="receipt-save-modal" class="modal-backdrop fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-6" aria-hidden="true">
+    <div class="sheet w-full max-w-md rounded-t-3xl border border-cyan-300/50 bg-[#090716] px-5 pb-6 pt-4 sm:rounded-3xl">
+      <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-cyan-300/40 sm:hidden"></div>
+      <p class="mb-4 text-center text-sm font-semibold leading-relaxed text-cyan-100">📸 MOBILE SAVE ACTIVE: Tap and hold the receipt image below to save it directly to your device Photos folder!</p>
+      <img id="receipt-save-image" alt="Aura receipt" class="mx-auto mb-4 max-h-[60vh] w-full max-w-sm rounded-xl border border-white/15 bg-white object-contain" />
+      <button id="close-receipt-save" type="button" class="w-full rounded-2xl border border-white/15 py-3 text-sm text-white/70">
         Close
       </button>
     </div>
@@ -4461,54 +4475,31 @@
           return;
         }
 
-        var unsafe = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe;
-        var tgUser = (unsafe && unsafe.user) ? unsafe.user : {};
-        var rawName = String(tgUser.username || tgUser.first_name || getTelegramUsername() || "player").replace(/^@+/, "");
-        var safeName = rawName.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "player";
-
-        function triggerCompiledDownload(canvasOrBlobDataUrl) {
-          if (!canvasOrBlobDataUrl || canvasOrBlobDataUrl === "data:," || canvasOrBlobDataUrl === "data:") {
+        function openReceiptSaveModal(imgUrl) {
+          if (!imgUrl || imgUrl === "data:," || imgUrl === "data:") {
             setStatus(t("receiptSaveFailed"));
             return false;
           }
-          const link = document.createElement('a');
-          link.download = `aura-receipt-${tgUser.username || safeName}.png`;
-          link.href = canvasOrBlobDataUrl;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+          var img = document.getElementById("receipt-save-image");
+          var modal = document.getElementById("receipt-save-modal");
+          if (!img || !modal) {
+            setStatus(t("receiptSaveFailed"));
+            return false;
+          }
+          img.src = imgUrl;
+          openModal(modal);
           setStatus(t("receiptSaved"));
           return true;
         }
 
-        function downloadFromCanvas(canvas, allowFallback) {
+        function presentCanvasForMobileSave(canvas, allowFallback) {
           if (!canvas) {
             setStatus(t("receiptSaveFailed"));
             return;
           }
-          if (typeof canvas.toBlob === "function") {
-            canvas.toBlob(function (blob) {
-              if (blob && blob.size > 0) {
-                var objectUrl = URL.createObjectURL(blob);
-                triggerCompiledDownload(objectUrl);
-                setTimeout(function () {
-                  URL.revokeObjectURL(objectUrl);
-                }, 1500);
-                return;
-              }
-              var dataUrl = "";
-              try {
-                dataUrl = canvas.toDataURL("image/png");
-              } catch (_toDataErr) {}
-              if (!triggerCompiledDownload(dataUrl)) {
-                if (allowFallback !== false) snapshotViaCanvasElement();
-                else setStatus(t("receiptSaveFailed"));
-              }
-            }, "image/png");
-            return;
-          }
           try {
-            if (!triggerCompiledDownload(canvas.toDataURL("image/png")) && allowFallback !== false) {
+            const imgUrl = canvas.toDataURL("image/png");
+            if (!openReceiptSaveModal(imgUrl) && allowFallback !== false) {
               snapshotViaCanvasElement();
             }
           } catch (_drawErr) {
@@ -4540,12 +4531,12 @@
             ctx.fillText(String(lines[i]).slice(0, 56), 36, y);
             y += 22;
           }
-          downloadFromCanvas(canvas, false);
+          presentCanvasForMobileSave(canvas, false);
         }
 
         if (typeof html2canvas === "function") {
           html2canvas(target, { backgroundColor: "#f2f2f2", scale: 2, useCORS: true }).then(function (canvas) {
-            downloadFromCanvas(canvas);
+            presentCanvasForMobileSave(canvas);
           }).catch(function () {
             snapshotViaCanvasElement();
           });
@@ -5935,23 +5926,14 @@
 
       function chooseFromChats() {
         if (window.Telegram && window.Telegram.WebApp) {
-          Telegram.WebApp.switchInlineQuery('look-at-my-clout', ['users', 'chats']);
-        } else {
-          alert("Telegram environment not detected.");
+          window.Telegram.WebApp.switchInlineQuery('look-at-my-clout');
         }
       }
 
-      function chooseRevengeOpponentFromChats(inputId) {
-        if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initData) {
-          alert("Arcade synchronization initializing... please tap again in a moment.");
-          return;
+      function chooseRevengeOpponentFromChats() {
+        if (window.Telegram && window.Telegram.WebApp) {
+          window.Telegram.WebApp.switchInlineQuery('fire-back');
         }
-        var resolvedId = String(inputId || "").trim();
-        if (!resolvedId) return;
-        state.revengePickerTargetInputId = resolvedId;
-        invokeTelegramChatPicker(function (data) {
-          applyRevengePickedChat(data, resolvedId);
-        }, resolvedId);
       }
 
       function loadPublicConfig() {
@@ -6426,14 +6408,7 @@
       });
       document.getElementById("choose-chat-btn").addEventListener("click", chooseFromChats);
       document.querySelectorAll("[data-revenge-pick-for]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initData) {
-            alert("Arcade synchronization initializing... please tap again in a moment.");
-            return;
-          }
-          var inputId = btn.getAttribute("data-revenge-pick-for");
-          chooseRevengeOpponentFromChats(inputId);
-        });
+        btn.addEventListener("click", chooseRevengeOpponentFromChats);
       });
       document.getElementById("target-input").addEventListener("input", function () {
         var typed = normalizeHandle(this.value);
@@ -6497,6 +6472,12 @@
         });
       });
       document.getElementById("save-receipt-btn").addEventListener("click", saveReceiptImage);
+      document.getElementById("close-receipt-save").addEventListener("click", function () {
+        closeModal(document.getElementById("receipt-save-modal"));
+      });
+      document.getElementById("receipt-save-modal").addEventListener("click", function (event) {
+        if (event.target === event.currentTarget) closeModal(event.currentTarget);
+      });
       document.getElementById("open-disclaimer").addEventListener("click", function () {
         openModal(document.getElementById("disclaimer-modal"));
       });
