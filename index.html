@@ -454,7 +454,8 @@
     #result-frost-wrap.hidden,
     #ad-gate-banner.hidden,
     #share-btn.hidden,
-    #skip-scratch-btn.hidden {
+    #skip-scratch-btn.hidden,
+    #scan-loading-bar.hidden {
       display: none !important;
       pointer-events: none !important;
     }
@@ -1052,12 +1053,14 @@
       <textarea id="insider-gossip" name="gossip" rows="3" maxlength="280" data-i18n-placeholder="insiderPlaceholder" placeholder="Drop inside jokes, squad lore, or known chaos..." class="mb-4 w-full resize-y rounded-2xl border border-fuchsia-300/25 bg-black/40 px-4 py-3 text-white outline-none ring-fuchsia-300/35 placeholder:text-white/35 focus:border-fuchsia-300/45 focus:ring-2"></textarea>
       </div>
 
-      <div class="mb-2 flex items-center justify-between text-xs text-white/50">
-        <span data-i18n="scanning" class="sr-only">Aura scan</span>
-        <span id="load-timer"><span class="neon-text-blue animate-pulse">⚙️ COMPILING CELLS... 0s</span></span>
-      </div>
-      <div class="load-track mb-4 rounded-full">
-        <div id="load-fill" class="load-fill rounded-full"></div>
+      <div id="scan-loading-bar" class="hidden">
+        <div class="mb-2 flex items-center justify-between text-xs text-white/50">
+          <span data-i18n="scanning" class="sr-only">Aura scan</span>
+          <span id="load-timer"><span class="neon-text-blue animate-pulse">⚙️ COMPILING CELLS... 0s</span></span>
+        </div>
+        <div class="load-track mb-4 rounded-full">
+          <div id="load-fill" class="load-fill rounded-full"></div>
+        </div>
       </div>
 
       <p id="status-line" class="mb-4 min-h-[1.25rem] text-sm text-white/60"></p>
@@ -3945,6 +3948,7 @@
         stopScan();
         resetScanVisual();
         hideResults();
+        document.getElementById("scan-loading-bar").classList.add("hidden");
         if (!keepAdBanner) hideAdGateBanner();
         unfreezeScanFields();
         unlockLockButton();
@@ -5215,6 +5219,7 @@
       }
 
       function finishSuccessfulReveal(payload, result, revealType) {
+        document.getElementById("scan-loading-bar").classList.add("hidden");
         state.lastSavedResult = {
           module_type: revealType,
           result: result,
@@ -5237,6 +5242,7 @@
       }
 
       function revealResult(payload, ok) {
+        document.getElementById("scan-loading-bar").classList.add("hidden");
         unlockLockButton();
         var result = payload && payload.result;
         if (!result && payload && (payload.brutal_oneliner != null || payload.clout_metrics != null || payload.scoreboard != null)) {
@@ -5265,6 +5271,7 @@
         }
         state.scanning = true;
         state.scanStartedAt = Date.now();
+        document.getElementById("scan-loading-bar").classList.remove("hidden");
         document.getElementById("load-fill").classList.add("running");
         document.getElementById("load-fill").classList.remove("complete-glow");
         document.getElementById("load-fill").style.width = "6%";
@@ -5340,6 +5347,7 @@
           stopScan();
           resetScanVisual();
           if (err && err.code === "INSUFFICIENT_TOKENS") {
+            document.getElementById("scan-loading-bar").classList.add("hidden");
             setStatus("OUT OF COINS");
             openArcadeCoinShop({
               credits_balance: (err.payload && err.payload.credits_balance != null)
@@ -5367,8 +5375,13 @@
       }
 
       function lockTarget() {
+        document.getElementById("scan-loading-bar").classList.remove("hidden");
         unlockArcadeAudio();
-        if (state.scanning || state.pendingTarget) return;
+        if (state.scanning) return;
+        if (state.pendingTarget) {
+          document.getElementById("scan-loading-bar").classList.add("hidden");
+          return;
+        }
         var target = "";
         var gossip = readGossipLive();
         var actionExtra = null;
@@ -5376,6 +5389,7 @@
         if (state.hub === "revenge_leaderboard") {
           var revengeBundle = collectRevengeOpponentsPayload();
           if (!revengeBundle.mandatory) {
+            document.getElementById("scan-loading-bar").classList.add("hidden");
             setStatus(t("needOpponent"));
             haptic("error");
             return;
@@ -5403,6 +5417,7 @@
             state.pickedFirstName = "";
           }
           if (!target) {
+            document.getElementById("scan-loading-bar").classList.add("hidden");
             setStatus(t("needTarget"));
             haptic("error");
             return;
@@ -5437,6 +5452,7 @@
         freezeScanFields();
         document.getElementById("lock-btn").disabled = true;
         document.getElementById("lock-btn").classList.add("opacity-60");
+        document.getElementById("scan-loading-bar").classList.add("hidden");
         setStatus("Free lifetime passes consumed! Initializing sponsor video ad...");
         logAds(t("adWatching"));
         showRewardedAd(target);
@@ -5886,69 +5902,43 @@
           var focusEl = document.getElementById(onUnavailableFocusId || "");
           if (focusEl && typeof focusEl.focus === "function") focusEl.focus();
         }
-        var configuredApp = getTelegramWebApp();
-        if (!configuredApp || !isTelegramInitDataReady(configuredApp) || !window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initData) {
+        // Native picker methods (requestChat / switchInlineQuery) must run in the
+        // same user-gesture stack as the button tap. Deferring through ready()
+        // or rAF drops the handshake and Telegram throws WEBAPP_REQ_ID_INVALID.
+        var webApp = window.Telegram && window.Telegram.WebApp;
+        if (!webApp || !webApp.initData || typeof webApp.requestChat !== "function") {
           pickerUnavailable();
           return;
         }
-        // Native chat selection must wait until Telegram.WebApp.ready() finishes
-        // stamping Request ID parameters, or requestChat throws webapp_req_id_invalid.
-        whenTelegramReady(function (readyApp) {
-          if (!readyApp || !isTelegramInitDataReady(readyApp) || !readyApp.initData || typeof readyApp.requestChat !== "function") {
-            pickerUnavailable();
-            return;
-          }
-          var pickerLaunched = false;
-          function launchPicker(webApp) {
-            if (pickerLaunched) return;
-            if (!webApp || !webApp.initData || typeof webApp.requestChat !== "function") {
-              pickerUnavailable();
-              return;
-            }
-            pickerLaunched = true;
-            setStatus(t("pickerBusy"));
-            try {
-              var pickerParams = {
-                bot_is_member: false,
-                chat_is_channel: false,
-                chat_is_group: false,
-                request_title: true,
-                request_username: true
-              };
-              var result = webApp.requestChat(pickerParams);
-              if (result && typeof result.then === "function") {
-                result.then(function (data) {
-                  onPicked(data);
-                }).catch(function () {
-                  state.revengePickerTargetInputId = "";
-                  setStatus(t("pickerCancelled"));
-                });
-              }
-            } catch (err) {
+        setStatus(t("pickerBusy"));
+        try {
+          var pickerParams = {
+            bot_is_member: false,
+            chat_is_channel: false,
+            chat_is_group: false,
+            request_title: true,
+            request_username: true
+          };
+          var result = webApp.requestChat(pickerParams);
+          if (result && typeof result.then === "function") {
+            result.then(function (data) {
+              onPicked(data);
+            }).catch(function () {
               state.revengePickerTargetInputId = "";
-              pickerUnavailable();
-            }
+              setStatus(t("pickerCancelled"));
+            });
           }
-          try {
-            if (typeof readyApp.ready === "function") {
-              var nestedReady = readyApp.ready(function () {
-                launchPicker(getTelegramWebApp() || readyApp);
-              });
-              if (nestedReady && typeof nestedReady.then === "function") {
-                nestedReady.then(function () {
-                  launchPicker(getTelegramWebApp() || readyApp);
-                }).catch(function () {
-                  launchPicker(readyApp);
-                });
-                return;
-              }
-            }
-          } catch (_wrapReadyErr) {}
-          launchPicker(readyApp);
-        });
+        } catch (err) {
+          state.revengePickerTargetInputId = "";
+          pickerUnavailable();
+        }
       }
 
       function chooseFromChats() {
+        if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initData) {
+          alert("Arcade synchronization initializing... please tap again in a moment.");
+          return;
+        }
         state.revengePickerTargetInputId = "";
         invokeTelegramChatPicker(function (data) {
           applyPickedChat(data);
@@ -5956,6 +5946,10 @@
       }
 
       function chooseRevengeOpponentFromChats(inputId) {
+        if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initData) {
+          alert("Arcade synchronization initializing... please tap again in a moment.");
+          return;
+        }
         var resolvedId = String(inputId || "").trim();
         if (!resolvedId) return;
         state.revengePickerTargetInputId = resolvedId;
@@ -6437,6 +6431,10 @@
       document.getElementById("choose-chat-btn").addEventListener("click", chooseFromChats);
       document.querySelectorAll("[data-revenge-pick-for]").forEach(function (btn) {
         btn.addEventListener("click", function () {
+          if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initData) {
+            alert("Arcade synchronization initializing... please tap again in a moment.");
+            return;
+          }
           var inputId = btn.getAttribute("data-revenge-pick-for");
           chooseRevengeOpponentFromChats(inputId);
         });
