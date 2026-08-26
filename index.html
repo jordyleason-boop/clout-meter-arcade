@@ -549,6 +549,11 @@
       line-height: 1.2;
     }
 
+    .neon-text-blue {
+      color: #9ffbff;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.85), 0 0 16px rgba(0, 240, 255, 0.45);
+    }
+
     #lock-btn.lock-mode-ad {
       border-color: rgba(255, 214, 80, 0.75);
       background: linear-gradient(180deg, #ffe066, #ffb020 55%, #c47a00);
@@ -1151,8 +1156,8 @@
         <span data-i18n="shareToTelegram">Share to Telegram</span>
       </button>
 
-      <button id="lock-btn" type="button" class="lock-mode-free w-full rounded-2xl border border-fuchsia-300/70 bg-gradient-to-b from-fuchsia-400 via-pink-500 to-[#a80073] py-3.5 font-display text-base font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_8px_24px_rgba(255,0,170,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]">
-        <span id="lock-btn-label">[ ⚔️ LOCK TARGET ]</span>
+      <button id="lock-btn" type="button" onclick="triggerAdsgramVideo()" class="lock-mode-free w-full rounded-2xl border border-fuchsia-300/70 bg-gradient-to-b from-fuchsia-400 via-pink-500 to-[#a80073] py-3.5 font-display text-base font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_8px_24px_rgba(255,0,170,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]">
+        <span id="lock-btn-label" class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>
       </button>
 
       <div id="adsgram-slot" data-ad-surface class="mt-4 rounded-2xl border border-dashed border-white/15 bg-black/25 p-4">
@@ -1719,6 +1724,92 @@
       window.cloutShareState = null;
 
       var tg = null;
+      var telegramClientReady = false;
+      var telegramReadyBound = false;
+      var telegramReadyWaiters = [];
+
+      function getTelegramWebApp() {
+        if (window.Telegram && window.Telegram.WebApp) return window.Telegram.WebApp;
+        return tg || null;
+      }
+
+      function flushTelegramReadyWaiters(webApp) {
+        telegramClientReady = true;
+        if (webApp) tg = webApp;
+        var queued = telegramReadyWaiters.slice();
+        telegramReadyWaiters = [];
+        var i;
+        for (i = 0; i < queued.length; i += 1) {
+          try {
+            queued[i](webApp);
+          } catch (_readyFlushErr) {}
+        }
+      }
+
+      function bindTelegramReadyHandshake() {
+        var webApp = getTelegramWebApp();
+        if (!webApp) {
+          flushTelegramReadyWaiters(null);
+          return;
+        }
+        if (telegramReadyBound) return;
+        telegramReadyBound = true;
+        var settled = false;
+        function settle() {
+          if (settled) return;
+          settled = true;
+          flushTelegramReadyWaiters(getTelegramWebApp());
+        }
+        try {
+          if (typeof webApp.ready === "function") {
+            var maybeReady = webApp.ready(function () {
+              settle();
+            });
+            if (maybeReady && typeof maybeReady.then === "function") {
+              maybeReady.then(function () {
+                settle();
+              }).catch(function () {
+                settle();
+              });
+            }
+          }
+        } catch (_readyInvokeErr) {}
+        // Official WebApp.ready() only notifies the client. Wait two frames so
+        // Telegram can stamp internal Request ID parameters before any UI request.
+        if (typeof window.requestAnimationFrame === "function") {
+          window.requestAnimationFrame(function () {
+            window.requestAnimationFrame(function () {
+              settle();
+            });
+          });
+        } else {
+          setTimeout(settle, 48);
+        }
+      }
+
+      function whenTelegramReady(callback) {
+        var webApp = getTelegramWebApp();
+        if (!webApp) {
+          callback(null);
+          return;
+        }
+        if (telegramClientReady) {
+          callback(webApp);
+          return;
+        }
+        telegramReadyWaiters.push(callback);
+        bindTelegramReadyHandshake();
+      }
+
+      function runNativeTelegram(handler, onMissing) {
+        whenTelegramReady(function (webApp) {
+          if (!webApp) {
+            if (typeof onMissing === "function") onMissing();
+            return;
+          }
+          handler(webApp);
+        });
+      }
 
       function t(key) {
         var pack = I18N[state.lang] || I18N.en;
@@ -2085,13 +2176,15 @@
       }
 
       function haptic(type) {
-        try {
-          if (tg && tg.HapticFeedback) {
-            if (type === "success") tg.HapticFeedback.notificationOccurred("success");
-            else if (type === "error") tg.HapticFeedback.notificationOccurred("error");
-            else tg.HapticFeedback.impactOccurred(type || "medium");
-          }
-        } catch (err) {}
+        runNativeTelegram(function (webApp) {
+          try {
+            if (webApp && webApp.HapticFeedback) {
+              if (type === "success") webApp.HapticFeedback.notificationOccurred("success");
+              else if (type === "error") webApp.HapticFeedback.notificationOccurred("error");
+              else webApp.HapticFeedback.impactOccurred(type || "medium");
+            }
+          } catch (err) {}
+        });
       }
 
       function remainingFreeTokens() {
@@ -2167,28 +2260,40 @@
 
       function currentLockMode() {
         if (is_premium_user === true) return "premium";
-        if ((Number(state.total_free_actions_used) || 0) >= FREE_LIFETIME_ACTIONS) return "ad";
-        return "free";
+        if ((Number(state.credits_balance) || 0) > 0) return "free";
+        return "ad";
       }
 
       function syncLockButtonLabel() {
-        var btn = document.getElementById("lock-btn");
-        var label = document.getElementById("lock-btn-label");
-        if (!btn || !label) return;
-        var mode = currentLockMode();
-        btn.classList.remove("lock-mode-free", "lock-mode-ad", "lock-mode-premium");
-        if (mode === "premium") {
-          label.textContent = LOCK_COMPUTE_LABEL;
-          btn.classList.add("lock-mode-premium");
+        var currentTokens = Number(state.credits_balance);
+        if (!Number.isFinite(currentTokens) || currentTokens < 0) currentTokens = 0;
+        applyWalletScanButton(currentTokens);
+      }
+
+      function applyWalletScanButton(currentTokens) {
+        var adButton = document.querySelector("button[onclick*='triggerAdsgramVideo']");
+        if (!adButton) adButton = document.getElementById("lock-btn");
+        if (!adButton) return;
+        var tokens = Number(currentTokens);
+        if (!Number.isFinite(tokens)) tokens = 0;
+        adButton.classList.remove("lock-mode-free", "lock-mode-ad", "lock-mode-premium");
+        if (is_premium_user === true) {
+          adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>';
+          adButton.removeAttribute("disabled");
+          adButton.disabled = false;
+          adButton.classList.add("lock-mode-premium");
           return;
         }
-        if (mode === "ad") {
-          label.textContent = WATCH_AD_RUN_LABEL;
-          btn.classList.add("lock-mode-ad");
+        if (tokens > 0) {
+          adButton.innerHTML = '<span class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>';
+          adButton.removeAttribute("disabled");
+          adButton.disabled = false;
+          adButton.classList.remove("opacity-60", "pointer-events-none");
+          adButton.classList.add("lock-mode-free");
           return;
         }
-        label.textContent = LOCK_TARGET_LABEL;
-        btn.classList.add("lock-mode-free");
+        adButton.innerHTML = '<span class="text-xs font-bold neon-text-blue">📺 WATCH AD: EARN +1 FREE ARCADETOKEN</span>';
+        adButton.classList.add("lock-mode-ad");
       }
 
       function renderActivatePassButton(clockText) {
@@ -2531,8 +2636,9 @@
           var webApp = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
           if (webApp && typeof webApp.showRewardedVideo === "function") {
             if (statusEl) statusEl.textContent = "Watch the full ad to earn 1 free coin…";
-            try {
-              var maybePromise = webApp.showRewardedVideo(function (status) {
+            runNativeTelegram(function (readyApp) {
+              try {
+                var maybePromise = readyApp.showRewardedVideo(function (status) {
                 var normalized = String(status == null ? "" : status).toLowerCase();
                 if (
                   normalized === "completed" ||
@@ -2579,6 +2685,7 @@
             } catch (invokeErr) {
               onRewardedVideoFailed("Unable to open Telegram rewarded video.");
             }
+            });
             return;
           }
 
@@ -2643,10 +2750,14 @@
             if (!url) {
               throw new Error("Telegram did not return a checkout link");
             }
-            if (!window.Telegram || !window.Telegram.WebApp || typeof window.Telegram.WebApp.openInvoice !== "function") {
-              throw new Error("Open Clout Meter inside Telegram to pay with Stars");
-            }
-            window.Telegram.WebApp.openInvoice(url, function (status) {
+            runNativeTelegram(function (webApp) {
+              if (!webApp || typeof webApp.openInvoice !== "function") {
+                starInvoiceInFlight = false;
+                setArcadePackButtonsBusy(false);
+                if (statusEl) statusEl.textContent = "Open Clout Meter inside Telegram to pay with Stars";
+                return;
+              }
+              webApp.openInvoice(url, function (status) {
               try {
                 if (status === "paid") {
                   var grantedCredits = Number(data.credits);
@@ -2658,7 +2769,7 @@
                     statusEl.textContent = "Coins inserted! +" + String(grantedCredits) + " arcade credits loaded.";
                   }
                   haptic("success");
-                  syncCloudSession();
+                  syncTokens();
                   return;
                 }
                 if (status === "cancelled") {
@@ -2674,6 +2785,7 @@
                 starInvoiceInFlight = false;
                 setArcadePackButtonsBusy(false);
               }
+            });
             });
           }).catch(function (err) {
             starInvoiceInFlight = false;
@@ -2728,41 +2840,39 @@
       }
 
       function hideTelegramBackButton() {
-        try {
-          var webApp = (tg && tg.BackButton)
-            ? tg
-            : (window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null);
-          if (!webApp || !webApp.BackButton) return;
-          if (typeof webApp.BackButton.offClick === "function" && state.telegramBackButtonHandler) {
-            webApp.BackButton.offClick(state.telegramBackButtonHandler);
-          }
-          if (typeof webApp.BackButton.hide === "function") {
-            webApp.BackButton.hide();
-          }
-        } catch (_err) {}
+        runNativeTelegram(function (webApp) {
+          try {
+            if (!webApp || !webApp.BackButton) return;
+            if (typeof webApp.BackButton.offClick === "function" && state.telegramBackButtonHandler) {
+              webApp.BackButton.offClick(state.telegramBackButtonHandler);
+            }
+            if (typeof webApp.BackButton.hide === "function") {
+              webApp.BackButton.hide();
+            }
+          } catch (_err) {}
+        });
       }
 
       function showTelegramBackButton() {
-        try {
-          var webApp = (tg && tg.BackButton)
-            ? tg
-            : (window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null);
-          if (!webApp || !webApp.BackButton) return;
-          if (typeof state.telegramBackButtonHandler !== "function") {
-            state.telegramBackButtonHandler = function () {
-              resetMiniGameToCabinet();
-            };
-          }
-          if (typeof webApp.BackButton.offClick === "function") {
-            webApp.BackButton.offClick(state.telegramBackButtonHandler);
-          }
-          if (typeof webApp.BackButton.onClick === "function") {
-            webApp.BackButton.onClick(state.telegramBackButtonHandler);
-          }
-          if (typeof webApp.BackButton.show === "function") {
-            webApp.BackButton.show();
-          }
-        } catch (_err) {}
+        runNativeTelegram(function (webApp) {
+          try {
+            if (!webApp || !webApp.BackButton) return;
+            if (typeof state.telegramBackButtonHandler !== "function") {
+              state.telegramBackButtonHandler = function () {
+                closeActiveGame();
+              };
+            }
+            if (typeof webApp.BackButton.offClick === "function") {
+              webApp.BackButton.offClick(state.telegramBackButtonHandler);
+            }
+            if (typeof webApp.BackButton.onClick === "function") {
+              webApp.BackButton.onClick(state.telegramBackButtonHandler);
+            }
+            if (typeof webApp.BackButton.show === "function") {
+              webApp.BackButton.show();
+            }
+          } catch (_err) {}
+        });
       }
 
       function resetMiniGameToCabinet() {
@@ -2791,6 +2901,7 @@
 
         var hubGrid = document.getElementById("hub-grid");
         var cabinet = document.getElementById("arcade-cabinet");
+        var mainMenu = document.getElementById("main-menu") || cabinet;
         if (hubGrid) {
           hubGrid.classList.remove("hidden");
           hubGrid.style.display = "";
@@ -2806,9 +2917,20 @@
             cabinet.scrollIntoView({ behavior: "smooth", block: "start" });
           } catch (_scrollErr) {}
         }
+        if (mainMenu) {
+          mainMenu.classList.remove("hidden");
+          mainMenu.style.display = "block";
+          mainMenu.style.pointerEvents = "auto";
+          mainMenu.style.opacity = "1";
+        }
         try {
           window.scrollTo(0, 0);
         } catch (_winScrollErr) {}
+        syncTokens();
+      }
+
+      function closeActiveGame() {
+        resetMiniGameToCabinet();
       }
 
       function openMiniGameFromCabinet(hubId) {
@@ -3916,6 +4038,47 @@
             });
           }).catch(function () {});
         } catch (err) {
+          return Promise.resolve();
+        }
+      }
+
+      function syncTokens() {
+        try {
+          var initData = getInitData();
+          var telegramId = resolveCurrentUserId();
+          return fetch("/api/session", {
+            method: "POST",
+            headers: telegramApiHeaders(),
+            body: JSON.stringify({
+              init_data: initData || "",
+              telegram_id: telegramId,
+              handle: getTelegramUsername() || "test_user_99"
+            })
+          }).then(function (res) {
+            return res.text().then(function (text) {
+              var data = parseJsonObjectSafe(text) || {};
+              if (res.ok && data && data.ok && data.user) {
+                applyCloudLedger(data.user);
+                var currentTokens = data.user.credits_balance;
+                const adButton = document.querySelector("button[onclick*='triggerAdsgramVideo']");
+                if (currentTokens > 0) {
+                  if (adButton) {
+                    adButton.innerHTML = '<span class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>';
+                    adButton.removeAttribute('disabled');
+                  }
+                } else {
+                  if (adButton) {
+                    adButton.innerHTML = '<span class="text-xs font-bold neon-text-blue">📺 WATCH AD: EARN +1 FREE ARCADETOKEN</span>';
+                  }
+                }
+                applyWalletScanButton(currentTokens);
+              }
+            });
+          }).catch(function () {
+            applyWalletScanButton(state.credits_balance);
+          });
+        } catch (err) {
+          applyWalletScanButton(state.credits_balance);
           return Promise.resolve();
         }
       }
@@ -5129,8 +5292,8 @@
           return;
         }
 
-        if ((Number(state.total_free_actions_used) || 0) < FREE_LIFETIME_ACTIONS) {
-          state.consumingFreeToken = true;
+        if ((Number(state.credits_balance) || 0) > 0) {
+          state.consumingFreeToken = (Number(state.total_free_actions_used) || 0) < FREE_LIFETIME_ACTIONS;
           document.getElementById("lock-btn").disabled = true;
           document.getElementById("lock-btn").classList.add("opacity-60");
           startSecureFetch(target, state.gateToken, gossip, actionExtra);
@@ -5413,10 +5576,14 @@
             if (!url) {
               throw new Error("Telegram did not return a checkout link");
             }
-            if (!window.Telegram || !window.Telegram.WebApp || typeof window.Telegram.WebApp.openInvoice !== "function") {
-              throw new Error("Open Clout Meter inside Telegram to pay with Stars");
-            }
-            window.Telegram.WebApp.openInvoice(url, function (status) {
+            runNativeTelegram(function (webApp) {
+              if (!webApp || typeof webApp.openInvoice !== "function") {
+                starInvoiceInFlight = false;
+                setStarPayButtonsBusy(false);
+                if (statusEl) statusEl.textContent = "Open Clout Meter inside Telegram to pay with Stars";
+                return;
+              }
+              webApp.openInvoice(url, function (status) {
               try {
                 if (status === "paid") {
                   is_premium_user = true;
@@ -5425,9 +5592,10 @@
                   refreshPremiumUiCards();
                   if (statusEl) statusEl.textContent = t("paymentSuccess");
                   haptic("success");
-                  if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.showPopup === "function") {
+                  syncTokens();
+                  if (typeof webApp.showPopup === "function") {
                     try {
-                      window.Telegram.WebApp.showPopup({
+                      webApp.showPopup({
                         title: "Clout Meter",
                         message: t("paymentSuccess"),
                         buttons: [{ type: "ok" }]
@@ -5449,6 +5617,7 @@
                 starInvoiceInFlight = false;
                 setStarPayButtonsBusy(false);
               }
+            });
             });
           }).catch(function (err) {
             try {
@@ -5474,23 +5643,24 @@
       }
 
       function initTelegram() {
-        try {
-          tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-          if (!tg) return;
-          if (typeof tg.ready === "function") tg.ready();
-          if (typeof tg.expand === "function") tg.expand();
-          if (typeof tg.setHeaderColor === "function") tg.setHeaderColor("#050508");
-          if (typeof tg.setBackgroundColor === "function") tg.setBackgroundColor("#050508");
-          // Do NOT call disableVerticalSwipes — it freezes document/touch scrolling on mobile Telegram.
-          if (typeof tg.enableVerticalSwipes === "function") {
-            tg.enableVerticalSwipes();
-          }
-          if (typeof tg.onEvent === "function") {
-            tg.onEvent("chatRequested", onChatRequested);
-          }
-          // Keep native BackButton hidden until a mini-game is opened.
-          hideTelegramBackButton();
-        } catch (err) {}
+        whenTelegramReady(function (webApp) {
+          try {
+            if (!webApp) return;
+            tg = webApp;
+            if (typeof webApp.expand === "function") webApp.expand();
+            if (typeof webApp.setHeaderColor === "function") webApp.setHeaderColor("#050508");
+            if (typeof webApp.setBackgroundColor === "function") webApp.setBackgroundColor("#050508");
+            // Do NOT call disableVerticalSwipes — it freezes document/touch scrolling on mobile Telegram.
+            if (typeof webApp.enableVerticalSwipes === "function") {
+              webApp.enableVerticalSwipes();
+            }
+            if (typeof webApp.onEvent === "function") {
+              webApp.onEvent("chatRequested", onChatRequested);
+            }
+            // Keep native BackButton hidden until a mini-game is opened.
+            hideTelegramBackButton();
+          } catch (err) {}
+        });
       }
 
       function showTargetLockedTag(name) {
@@ -5580,43 +5750,66 @@
 
       function invokeTelegramChatPicker(onPicked, onUnavailableFocusId) {
         haptic("medium");
-        var webApp = (tg && typeof tg.requestChat === "function")
-          ? tg
-          : (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.requestChat === "function"
-            ? window.Telegram.WebApp
-            : null);
-        if (!webApp) {
+        function pickerUnavailable() {
           setStatus(t("pickerUnavailable"));
           var focusEl = document.getElementById(onUnavailableFocusId || "");
           if (focusEl && typeof focusEl.focus === "function") focusEl.focus();
-          return false;
         }
-        setStatus(t("pickerBusy"));
-        try {
-          var pickerParams = {
-            bot_is_member: false,
-            chat_is_channel: false,
-            chat_is_group: false,
-            request_title: true,
-            request_username: true
-          };
-          var result = webApp.requestChat(pickerParams);
-          if (result && typeof result.then === "function") {
-            result.then(function (data) {
-              onPicked(data);
-            }).catch(function () {
-              state.revengePickerTargetInputId = "";
-              setStatus(t("pickerCancelled"));
-            });
+        // Native chat selection must wait until Telegram.WebApp.ready() finishes
+        // stamping Request ID parameters, or requestChat throws webapp_req_id_invalid.
+        whenTelegramReady(function (readyApp) {
+          if (!readyApp || typeof readyApp.requestChat !== "function") {
+            pickerUnavailable();
+            return;
           }
-          return true;
-        } catch (err) {
-          state.revengePickerTargetInputId = "";
-          setStatus(t("pickerUnavailable"));
-          var fallbackFocus = document.getElementById(onUnavailableFocusId || "");
-          if (fallbackFocus && typeof fallbackFocus.focus === "function") fallbackFocus.focus();
-          return false;
-        }
+          var pickerLaunched = false;
+          function launchPicker(webApp) {
+            if (pickerLaunched) return;
+            if (!webApp || typeof webApp.requestChat !== "function") {
+              pickerUnavailable();
+              return;
+            }
+            pickerLaunched = true;
+            setStatus(t("pickerBusy"));
+            try {
+              var pickerParams = {
+                bot_is_member: false,
+                chat_is_channel: false,
+                chat_is_group: false,
+                request_title: true,
+                request_username: true
+              };
+              var result = webApp.requestChat(pickerParams);
+              if (result && typeof result.then === "function") {
+                result.then(function (data) {
+                  onPicked(data);
+                }).catch(function () {
+                  state.revengePickerTargetInputId = "";
+                  setStatus(t("pickerCancelled"));
+                });
+              }
+            } catch (err) {
+              state.revengePickerTargetInputId = "";
+              pickerUnavailable();
+            }
+          }
+          try {
+            if (typeof readyApp.ready === "function") {
+              var nestedReady = readyApp.ready(function () {
+                launchPicker(getTelegramWebApp() || readyApp);
+              });
+              if (nestedReady && typeof nestedReady.then === "function") {
+                nestedReady.then(function () {
+                  launchPicker(getTelegramWebApp() || readyApp);
+                }).catch(function () {
+                  launchPicker(readyApp);
+                });
+                return;
+              }
+            }
+          } catch (_wrapReadyErr) {}
+          launchPicker(readyApp);
+        });
       }
 
       function chooseFromChats() {
@@ -5980,22 +6173,29 @@
           ].join("\n");
           var revengeWebApp = window.Telegram && window.Telegram.WebApp;
           if (revengeWebApp && typeof revengeWebApp.shareToBotChat === "function") {
-            try {
-              var revengeShared = revengeWebApp.shareToBotChat(shareText);
-              if (revengeShared && typeof revengeShared.then === "function") {
-                revengeShared.then(function () {
-                  haptic("success");
-                }).catch(function () {
+            runNativeTelegram(function (webApp) {
+              try {
+                if (!webApp || typeof webApp.shareToBotChat !== "function") {
                   copyShareFallback(shareText);
-                });
-                return;
+                  return;
+                }
+                var revengeShared = webApp.shareToBotChat(shareText);
+                if (revengeShared && typeof revengeShared.then === "function") {
+                  revengeShared.then(function () {
+                    haptic("success");
+                  }).catch(function () {
+                    copyShareFallback(shareText);
+                  });
+                  return;
+                }
+                haptic("success");
+              } catch (_revengeShareErr) {
+                copyShareFallback(shareText);
               }
-              haptic("success");
-              return;
-            } catch (_revengeShareErr) {
+            }, function () {
               copyShareFallback(shareText);
-              return;
-            }
+            });
+            return;
           }
           copyShareFallback(shareText);
           return;
@@ -6017,34 +6217,55 @@
         var viralText = compileViralShare(bundle);
         var webApp = window.Telegram && window.Telegram.WebApp;
         if (webApp && typeof webApp.shareToBotChat === "function") {
-          try {
-            var shared = webApp.shareToBotChat(viralText);
-            if (shared && typeof shared.then === "function") {
-              shared.then(function () {
-                haptic("success");
-              }).catch(function () {
+          runNativeTelegram(function (readyApp) {
+            try {
+              if (!readyApp || typeof readyApp.shareToBotChat !== "function") {
                 copyShareFallback(viralText);
-              });
-              return;
+                return;
+              }
+              var shared = readyApp.shareToBotChat(viralText);
+              if (shared && typeof shared.then === "function") {
+                shared.then(function () {
+                  haptic("success");
+                }).catch(function () {
+                  copyShareFallback(viralText);
+                });
+                return;
+              }
+              haptic("success");
+            } catch (_err) {
+              copyShareFallback(viralText);
             }
-            haptic("success");
-            return;
-          } catch (_err) {
+          }, function () {
             copyShareFallback(viralText);
-            return;
-          }
+          });
+          return;
         }
         copyShareFallback(viralText);
       }
 
       function openSupportChat() {
         var url = "https://t.me/" + SUPPORT_HANDLE;
-        if (tg && typeof tg.openTelegramLink === "function") {
-          tg.openTelegramLink(url);
+        runNativeTelegram(function (webApp) {
+          if (webApp && typeof webApp.openTelegramLink === "function") {
+            webApp.openTelegramLink(url);
+            return;
+          }
+          window.open(url, "_blank");
+        }, function () {
+          window.open(url, "_blank");
+        });
+      }
+
+      function triggerAdsgramVideo() {
+        var currentTokens = Number(state.credits_balance) || 0;
+        if (is_premium_user === true || currentTokens > 0) {
+          lockTarget();
           return;
         }
-        window.open(url, "_blank");
+        watchAd();
       }
+      window.triggerAdsgramVideo = triggerAdsgramVideo;
 
       document.querySelectorAll("[data-hub]").forEach(function (card) {
         card.addEventListener("click", function () {
@@ -6053,25 +6274,24 @@
       });
 
       document.getElementById("close-hub-modal").addEventListener("click", function () {
-        resetMiniGameToCabinet();
+        closeActiveGame();
       });
       document.querySelectorAll(".mini-game-close-btn, [data-close-mini-game]").forEach(function (btn) {
         btn.addEventListener("click", function (event) {
           event.preventDefault();
           event.stopPropagation();
-          resetMiniGameToCabinet();
+          closeActiveGame();
         });
       });
       document.getElementById("hub-modal").addEventListener("click", function (event) {
         if (event.target === event.currentTarget) {
-          resetMiniGameToCabinet();
+          closeActiveGame();
         }
       });
       document.getElementById("lock-btn").addEventListener("pointerdown", function () {
         state.insiderContext = readGossipLive();
         state.pendingGossip = state.insiderContext;
       });
-      document.getElementById("lock-btn").addEventListener("click", lockTarget);
       document.getElementById("insider-gossip").addEventListener("input", function () {
         state.insiderContext = String(this.value || "").trim();
       });
@@ -6173,18 +6393,20 @@
       });
 
       purgeBlockingLayers();
+      bindTelegramReadyHandshake();
       initTelegram();
       state.lang = detectLanguage();
       applyI18n();
       loadProgress();
       paintCreditsBalance(state.credits_balance);
+      applyWalletScanButton(state.credits_balance);
       renderEnergy();
       renderClout();
       applyPremiumView();
       startPremiumExpiryClock();
       startSaleCountdown();
       loadPublicConfig();
-      syncCloudSession();
+      syncTokens();
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", function () {
           mountOminousIntro();
