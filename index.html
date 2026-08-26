@@ -1303,6 +1303,7 @@
           pickerUnavailable: "Chat picker needs the Telegram app. Type a handle manually.",
           pickerCancelled: "Picker cancelled. Type a handle manually.",
           pickerBusy: "Opening Telegram chat picker…",
+          pickerShared: "Chat shared with the bot. Confirm the handle below.",
           scratchHint: "Tap to reveal your result",
           skipScratch: "⚡ Skip Mini-Game",
           scratchReady: "Scratch 70% to reveal the full drop.",
@@ -5592,31 +5593,45 @@
           return false;
         }
         setStatus(t("pickerBusy"));
-        try {
-          var pickerParams = {
-            bot_is_member: false,
-            chat_is_channel: false,
-            chat_is_group: false,
-            request_title: true,
-            request_username: true
-          };
-          var result = webApp.requestChat(pickerParams);
-          if (result && typeof result.then === "function") {
-            result.then(function (data) {
-              onPicked(data);
-            }).catch(function () {
-              state.revengePickerTargetInputId = "";
-              setStatus(t("pickerCancelled"));
-            });
-          }
-          return true;
-        } catch (err) {
+        // Bot API 9.6+ contract: WebApp.requestChat(req_id, callback) requires a req_id that
+        // belongs to a PreparedKeyboardButton created server-side via savePreparedKeyboardButton.
+        // A raw/random id triggers WEBAPP_REQ_ID_INVALID, so obtain the prepared id first.
+        function failPicker() {
           state.revengePickerTargetInputId = "";
           setStatus(t("pickerUnavailable"));
-          var fallbackFocus = document.getElementById(onUnavailableFocusId || "");
-          if (fallbackFocus && typeof fallbackFocus.focus === "function") fallbackFocus.focus();
-          return false;
+          var focusEl = document.getElementById(onUnavailableFocusId || "");
+          if (focusEl && typeof focusEl.focus === "function") focusEl.focus();
         }
+        fetch("/api/prepare-chat-button", {
+          method: "POST",
+          headers: telegramApiHeaders(),
+          body: JSON.stringify({
+            init_data: getInitData() || "",
+            telegram_id: resolveCurrentUserId()
+          })
+        }).then(function (res) {
+          return res.ok ? res.json() : null;
+        }).then(function (data) {
+          if (!data || data.ok !== true || !data.id) {
+            failPicker();
+            return;
+          }
+          try {
+            webApp.requestChat(data.id, function (sent) {
+              if (sent) {
+                setStatus(t("pickerShared"));
+              } else {
+                state.revengePickerTargetInputId = "";
+                setStatus(t("pickerCancelled"));
+              }
+            });
+          } catch (err) {
+            failPicker();
+          }
+        }).catch(function () {
+          failPicker();
+        });
+        return true;
       }
 
       function chooseFromChats() {

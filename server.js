@@ -1152,6 +1152,78 @@ app.post("/api/create-star-invoice", async (req, res) => {
   }
 });
 
+// Creates a PreparedKeyboardButton (request_chat) via the Bot API so the Mini App can call
+// WebApp.requestChat(id) with a valid req_id. Returns { ok, id }.
+app.post("/api/prepare-chat-button", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const clientIp = getClientIp(req);
+    if (!ipLimiter.allow(`ip-prepchat:${clientIp}`)) {
+      res.status(429).json({ ok: false, error: "Too many requests" });
+      return;
+    }
+
+    const origin = req.get("Origin");
+    if (origin && origin !== FRONTEND_ORIGIN) {
+      res.status(403).json({ ok: false, error: "Forbidden origin" });
+      return;
+    }
+
+    if (!botToken || !/^\d+:[A-Za-z0-9_-]+$/.test(botToken)) {
+      res.status(503).json({ ok: false, error: "Telegram chat picker is not configured" });
+      return;
+    }
+
+    // Prefer the verified Telegram user; fall back to a body id for local browser testing.
+    const initData = extractInitData(req);
+    const verified = verifyTelegramInitData(initData, botToken, INITDATA_MAX_AGE_SECONDS);
+    let userId = 0;
+    if (verified.ok && verified.user && verified.user.id != null) {
+      userId = Number(verified.user.id);
+    } else {
+      const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
+      userId = normalizeArcadeTelegramId(body.telegram_id != null ? body.telegram_id : body.user_id);
+    }
+    if (!Number.isFinite(userId) || userId <= 0) {
+      res.status(401).json({ ok: false, error: "Open Clout Meter inside Telegram to choose from chats" });
+      return;
+    }
+
+    // KeyboardButtonRequestChat.request_id: a signed 32-bit integer unique to this request.
+    const requestId = Math.floor(Math.random() * 2147483646) + 1;
+
+    const prepared = await telegramBotApi("savePreparedKeyboardButton", {
+      user_id: userId,
+      button: {
+        text: "Choose from chats",
+        request_chat: {
+          request_id: requestId,
+          chat_is_channel: false,
+          bot_is_member: false,
+          request_title: true,
+          request_username: true
+        }
+      }
+    });
+
+    if (!prepared.ok || !prepared.result || prepared.result.id == null) {
+      res.status(502).json({
+        ok: false,
+        error: prepared.error || "Telegram did not return a prepared chat button"
+      });
+      return;
+    }
+
+    res.status(200).json({
+      ok: true,
+      id: String(prepared.result.id),
+      request_id: requestId
+    });
+  } catch (_err) {
+    res.status(500).json({ ok: false, error: "Unable to prepare Telegram chat button" });
+  }
+});
+
 app.post("/api/telegram-webhook", async (req, res) => {
   await handleTelegramWebhook(req, res);
 });
