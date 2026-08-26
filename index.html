@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="min-h-screen w-full overflow-y-scroll bg-black text-white">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -726,14 +726,11 @@
     .scoreboard-status {
       min-width: 0;
       max-width: 100%;
-      width: auto;
-      overflow: visible;
-      overflow-wrap: anywhere;
-      word-break: break-word;
-      white-space: normal;
-      text-overflow: clip;
-      line-height: 1.25;
-      hyphens: auto;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      line-height: 1.35;
+      padding-block: 0.15rem;
     }
 
     .scoreboard-status {
@@ -864,7 +861,7 @@
     }
   </style>
 </head>
-<body class="app-bg antialiased min-h-screen w-full overflow-y-auto overflow-x-hidden">
+<body class="app-bg antialiased min-h-screen w-full overflow-y-scroll overflow-x-hidden bg-black text-white">
   <div id="app-scroll-root" class="min-h-screen w-full overflow-x-hidden flex flex-col justify-start items-center px-4 pt-4 pb-20 scrollbar-thin">
   <div id="arcade-cabinet" class="arcade-screen relative z-10 mx-auto flex h-auto min-h-0 w-full max-w-md flex-col items-center justify-start overflow-visible px-4 pb-12 pt-6 md:max-w-app sm:px-6 lg:px-8">
     <header id="app-header" class="mb-6 w-full rounded-2xl border border-cyan-300/35 bg-[#090916]/85 px-3 py-3 backdrop-blur-md sm:px-4">
@@ -1303,6 +1300,7 @@
           pickerUnavailable: "Chat picker needs the Telegram app. Type a handle manually.",
           pickerCancelled: "Picker cancelled. Type a handle manually.",
           pickerBusy: "Opening Telegram chat picker…",
+          pickerShared: "Chat shared with the bot. Confirm the handle below.",
           scratchHint: "Tap to reveal your result",
           skipScratch: "⚡ Skip Mini-Game",
           scratchReady: "Scratch 70% to reveal the full drop.",
@@ -2360,6 +2358,24 @@
         if (modalBalance) {
           modalBalance.textContent = String(next);
         }
+
+        // Token-driven UI refresh: once the balance is positive, hide the out-of-coins
+        // shop (only if it is currently open) and re-enable/unfreeze the main-menu
+        // launcher cards plus the shop's Watch-Ad/pack controls so the dashboard is
+        // immediately actionable again.
+        if (next > 0) {
+          var shopModal = document.getElementById("arcade-coin-modal");
+          if (shopModal && shopModal.classList.contains("open")) {
+            closeArcadeCoinShop();
+          }
+          var launchers = document.querySelectorAll("[data-hub]");
+          var launcherIndex;
+          for (launcherIndex = 0; launcherIndex < launchers.length; launcherIndex += 1) {
+            launchers[launcherIndex].disabled = false;
+            launchers[launcherIndex].classList.remove("opacity-60", "pointer-events-none");
+          }
+          setArcadePackButtonsBusy(false);
+        }
       }
 
       function sanitizeArcadeShopStatusMessage(rawMessage) {
@@ -2809,6 +2825,11 @@
         try {
           window.scrollTo(0, 0);
         } catch (_winScrollErr) {}
+
+        // Closing any mini-game card forces the dashboard to re-poll the latest token
+        // balance and, via paintCreditsBalance, unfreeze all actionable launcher/shop
+        // controls to match the current state.
+        paintCreditsBalance(state.credits_balance);
       }
 
       function openMiniGameFromCabinet(hubId) {
@@ -3500,7 +3521,7 @@
           rankCell.className = "scoreboard-rank font-display text-xs md:text-sm font-extrabold";
           rankCell.textContent = String(displayRank);
           var nameCell = document.createElement("span");
-          nameCell.className = "scoreboard-handle font-display text-xs md:text-sm font-extrabold tracking-wide whitespace-normal break-words";
+          nameCell.className = "scoreboard-handle font-display text-xs md:text-sm font-extrabold tracking-wide w-2/5 text-left truncate min-w-[120px]";
           if (isChamp) {
             nameCell.textContent = "👑 " + displayHandle;
           } else {
@@ -4908,7 +4929,7 @@
           rankCell.className = "scoreboard-rank font-display text-xs md:text-sm font-extrabold";
           rankCell.textContent = String(displayRank);
           var nameCell = document.createElement("span");
-          nameCell.className = "scoreboard-handle font-display text-xs md:text-sm font-extrabold tracking-wide whitespace-normal break-words";
+          nameCell.className = "scoreboard-handle font-display text-xs md:text-sm font-extrabold tracking-wide w-2/5 text-left truncate min-w-[120px]";
           if (isChamp) {
             nameCell.textContent = "👑 " + displayHandle;
           } else {
@@ -4918,7 +4939,7 @@
           pointsCell.className = "scoreboard-points text-right font-bold text-xs md:text-sm whitespace-nowrap";
           pointsCell.textContent = String(points);
           var tagCell = document.createElement("span");
-          tagCell.className = "scoreboard-status text-right uppercase tracking-[0.06em] text-white/80 text-xs md:text-sm whitespace-normal break-words";
+          tagCell.className = "scoreboard-status text-right uppercase tracking-[0.06em] text-white/80 text-xs md:text-sm whitespace-nowrap";
           tagCell.textContent = tag;
           line.appendChild(rankCell);
           line.appendChild(nameCell);
@@ -5592,31 +5613,45 @@
           return false;
         }
         setStatus(t("pickerBusy"));
-        try {
-          var pickerParams = {
-            bot_is_member: false,
-            chat_is_channel: false,
-            chat_is_group: false,
-            request_title: true,
-            request_username: true
-          };
-          var result = webApp.requestChat(pickerParams);
-          if (result && typeof result.then === "function") {
-            result.then(function (data) {
-              onPicked(data);
-            }).catch(function () {
-              state.revengePickerTargetInputId = "";
-              setStatus(t("pickerCancelled"));
-            });
-          }
-          return true;
-        } catch (err) {
+        // Bot API 9.6+ contract: WebApp.requestChat(req_id, callback) requires a req_id that
+        // belongs to a PreparedKeyboardButton created server-side via savePreparedKeyboardButton.
+        // A raw/random id triggers WEBAPP_REQ_ID_INVALID, so obtain the prepared id first.
+        function failPicker() {
           state.revengePickerTargetInputId = "";
           setStatus(t("pickerUnavailable"));
-          var fallbackFocus = document.getElementById(onUnavailableFocusId || "");
-          if (fallbackFocus && typeof fallbackFocus.focus === "function") fallbackFocus.focus();
-          return false;
+          var focusEl = document.getElementById(onUnavailableFocusId || "");
+          if (focusEl && typeof focusEl.focus === "function") focusEl.focus();
         }
+        fetch("/api/prepare-chat-button", {
+          method: "POST",
+          headers: telegramApiHeaders(),
+          body: JSON.stringify({
+            init_data: getInitData() || "",
+            telegram_id: resolveCurrentUserId()
+          })
+        }).then(function (res) {
+          return res.ok ? res.json() : null;
+        }).then(function (data) {
+          if (!data || data.ok !== true || !data.id) {
+            failPicker();
+            return;
+          }
+          try {
+            webApp.requestChat(data.id, function (sent) {
+              if (sent) {
+                setStatus(t("pickerShared"));
+              } else {
+                state.revengePickerTargetInputId = "";
+                setStatus(t("pickerCancelled"));
+              }
+            });
+          } catch (err) {
+            failPicker();
+          }
+        }).catch(function () {
+          failPicker();
+        });
+        return true;
       }
 
       function chooseFromChats() {
