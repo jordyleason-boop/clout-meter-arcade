@@ -1334,7 +1334,6 @@
           pickerBusy: "Opening Telegram chat picker…",
           scratchHint: "Tap to reveal your result",
           skipScratch: "⚡ Skip Mini-Game",
-          scratchReady: "Scratch 70% to reveal the full drop.",
           receiptSaved: "Receipt image saved.",
           receiptSaveFailed: "Could not save receipt image.",
           onboardingTitle: "How Clout Meter Works",
@@ -5237,7 +5236,7 @@
         persistProgress();
         hydrateSavedResults();
         setupScratchcard();
-        setStatus(t("scratchReady"));
+        setStatus("");
         haptic("success");
       }
 
@@ -5935,14 +5934,11 @@
       }
 
       function chooseFromChats() {
-        if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initData) {
-          alert("Arcade synchronization initializing... please tap again in a moment.");
-          return;
+        if (window.Telegram && window.Telegram.WebApp) {
+          Telegram.WebApp.switchInlineQuery('look-at-my-clout', ['users', 'chats']);
+        } else {
+          alert("Telegram environment not detected.");
         }
-        state.revengePickerTargetInputId = "";
-        invokeTelegramChatPicker(function (data) {
-          applyPickedChat(data);
-        }, "target-input");
       }
 
       function chooseRevengeOpponentFromChats(inputId) {
