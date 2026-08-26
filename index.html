@@ -2358,6 +2358,24 @@
         if (modalBalance) {
           modalBalance.textContent = String(next);
         }
+
+        // Token-driven UI refresh: once the balance is positive, hide the out-of-coins
+        // shop (only if it is currently open) and re-enable/unfreeze the main-menu
+        // launcher cards plus the shop's Watch-Ad/pack controls so the dashboard is
+        // immediately actionable again.
+        if (next > 0) {
+          var shopModal = document.getElementById("arcade-coin-modal");
+          if (shopModal && shopModal.classList.contains("open")) {
+            closeArcadeCoinShop();
+          }
+          var launchers = document.querySelectorAll("[data-hub]");
+          var launcherIndex;
+          for (launcherIndex = 0; launcherIndex < launchers.length; launcherIndex += 1) {
+            launchers[launcherIndex].disabled = false;
+            launchers[launcherIndex].classList.remove("opacity-60", "pointer-events-none");
+          }
+          setArcadePackButtonsBusy(false);
+        }
       }
 
       function sanitizeArcadeShopStatusMessage(rawMessage) {
@@ -2807,6 +2825,11 @@
         try {
           window.scrollTo(0, 0);
         } catch (_winScrollErr) {}
+
+        // Closing any mini-game card forces the dashboard to re-poll the latest token
+        // balance and, via paintCreditsBalance, unfreeze all actionable launcher/shop
+        // controls to match the current state.
+        paintCreditsBalance(state.credits_balance);
       }
 
       function openMiniGameFromCabinet(hubId) {
