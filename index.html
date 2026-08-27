@@ -561,6 +561,11 @@
       text-shadow: 0 0 8px rgba(0, 240, 255, 0.85), 0 0 16px rgba(0, 240, 255, 0.45);
     }
 
+    .neon-text-pink {
+      color: #ff8ad8;
+      text-shadow: 0 0 8px rgba(255, 0, 170, 0.9), 0 0 16px rgba(255, 0, 170, 0.5);
+    }
+
     @keyframes auraCompilePulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.55; }
@@ -804,18 +809,6 @@
       box-shadow: 0 0 0 2px rgba(255, 0, 170, 0.18), inset 0 0 12px rgba(0, 240, 255, 0.08);
     }
 
-    .revenge-choose-chat-btn {
-      border: 1px solid rgba(192, 132, 252, 0.75);
-      background: linear-gradient(135deg, rgba(168, 85, 247, 0.95), rgba(126, 34, 206, 0.92) 55%, rgba(88, 28, 135, 0.95));
-      color: #f5e9ff;
-      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 22px rgba(168, 85, 247, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.28);
-      text-shadow: 0 0 10px rgba(233, 213, 255, 0.35);
-    }
-
-    .revenge-choose-chat-btn:active {
-      transform: translateY(1px);
-    }
-
     .score-neon {
       color: #9ffbff;
       text-shadow: 0 0 8px rgba(0, 240, 255, 0.85), 0 0 16px rgba(0, 240, 255, 0.55);
@@ -946,6 +939,7 @@
       </ul>
     </section>
 
+    <div id="main-menu" class="w-full">
     <section id="hub-grid" class="grid w-full grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
       <button type="button" data-hub="profile_roaster" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-left md:min-h-[280px] md:p-6">
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-orange-500/20 blur-2xl transition group-hover:bg-orange-400/30"></div>
@@ -978,6 +972,15 @@
       </button>
     </section>
 
+    <section class="w-full p-4 mt-4 bg-zinc-950 border border-dashed border-pink-500 rounded-xl text-center">
+      <h4 class="text-xs font-black neon-text-pink uppercase tracking-widest mb-1">🎮 MULTIPLAYER REFILL ACTIVE</h4>
+      <p class="text-[10px] text-zinc-400 mb-3">Invite a friend to the arcade panel. Secure +2 FREE COINS the moment they boot their first scan match!</p>
+      <button onclick="triggerViralInvite()" class="w-full py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 text-black font-black text-xs uppercase tracking-widest rounded-lg transition active:scale-95 cursor-pointer">
+        🚀 INVITE SQUAD (+2 TOKENS)
+      </button>
+    </section>
+    </div>
+
     <footer class="mt-8 flex w-full flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-fuchsia-400/20 pt-4 text-xs uppercase tracking-[0.16em]">
       <button id="open-disclaimer" type="button" class="compliance-link">Disclaimer</button>
       <button id="open-privacy" type="button" class="compliance-link">Privacy Policy</button>
@@ -999,9 +1002,6 @@
 
       <div id="standard-target-panel">
       <label for="target-input" data-i18n="targetLabel" class="mb-2 block text-xs font-medium uppercase tracking-wider text-white/45">Target</label>
-      <button id="choose-chat-btn" type="button" class="mb-3 w-full rounded-2xl border border-cyan-300/70 bg-gradient-to-r from-cyan-400 to-blue-500 py-3 font-display text-sm font-extrabold uppercase tracking-[0.14em] text-[#031016] shadow-[0_8px_24px_rgba(0,240,255,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]" onclick="chooseFromChats(event)">
-        🎯 CHOOSE FROM CHATS
-      </button>
       <input id="target-input" type="text" maxlength="80" data-i18n-placeholder="inputPlaceholder" placeholder="Enter @username or text description" class="mb-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none ring-gold/40 placeholder:text-white/30 focus:border-gold/40 focus:ring-2" />
       <p id="target-locked-tag" class="mb-4 hidden rounded-full border border-cyan-300/40 bg-cyan-400/10 px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200 shadow-[0_0_14px_rgba(0,240,255,0.28)]"></p>
       </div>
@@ -1016,41 +1016,21 @@
 
         <div class="space-y-2">
           <label for="revenge-opponent-required" class="block text-xs font-medium uppercase tracking-wider text-fuchsia-200/80">Primary Rival</label>
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-              <input id="revenge-opponent-required" type="text" maxlength="64" placeholder="@username" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/30" />
-              <button id="revenge-choose-required" type="button" data-revenge-pick-for="revenge-opponent-required" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats(event)">
-                [ 👥 CHOOSE FROM CHATS ]
-              </button>
-            </div>
+          <input id="revenge-opponent-required" type="text" maxlength="64" placeholder="@username" autocomplete="off" class="revenge-opponent-input w-full rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/30" />
         </div>
 
         <div class="space-y-3 pt-1">
           <div class="space-y-1.5">
             <p class="revenge-vs-optional-label text-[10px] font-semibold uppercase tracking-[0.18em]">vs. (Optional)</p>
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-              <input id="revenge-opponent-optional-1" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
-              <button id="revenge-choose-optional-1" type="button" data-revenge-pick-for="revenge-opponent-optional-1" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats(event)">
-                [ 👥 CHOOSE FROM CHATS ]
-              </button>
-            </div>
+            <input id="revenge-opponent-optional-1" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input w-full rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
           </div>
           <div class="space-y-1.5">
             <p class="revenge-vs-optional-label text-[10px] font-semibold uppercase tracking-[0.18em]">vs. (Optional)</p>
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-              <input id="revenge-opponent-optional-2" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
-              <button id="revenge-choose-optional-2" type="button" data-revenge-pick-for="revenge-opponent-optional-2" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats(event)">
-                [ 👥 CHOOSE FROM CHATS ]
-              </button>
-            </div>
+            <input id="revenge-opponent-optional-2" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input w-full rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
           </div>
           <div class="space-y-1.5">
             <p class="revenge-vs-optional-label text-[10px] font-semibold uppercase tracking-[0.18em]">vs. (Optional)</p>
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-              <input id="revenge-opponent-optional-3" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
-              <button id="revenge-choose-optional-3" type="button" data-revenge-pick-for="revenge-opponent-optional-3" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats(event)">
-                [ 👥 CHOOSE FROM CHATS ]
-              </button>
-            </div>
+            <input id="revenge-opponent-optional-3" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input w-full rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
           </div>
         </div>
       </div>
@@ -1198,6 +1178,14 @@
         </button>
         <pre id="adsgram-log" class="mt-3 max-h-20 overflow-auto text-[11px] leading-relaxed text-white/35">AdsGram listeners ready: onReward, onSkip, onError</pre>
       </div>
+
+      <section class="w-full p-4 mt-4 bg-zinc-950 border border-dashed border-pink-500 rounded-xl text-center">
+        <h4 class="text-xs font-black neon-text-pink uppercase tracking-widest mb-1">🎮 MULTIPLAYER REFILL ACTIVE</h4>
+        <p class="text-[10px] text-zinc-400 mb-3">Invite a friend to the arcade panel. Secure +2 FREE COINS the moment they boot their first scan match!</p>
+        <button onclick="triggerViralInvite()" class="w-full py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 text-black font-black text-xs uppercase tracking-widest rounded-lg transition active:scale-95 cursor-pointer">
+          🚀 INVITE SQUAD (+2 TOKENS)
+        </button>
+      </section>
     </div>
   </div>
 
@@ -2366,16 +2354,11 @@
         [
           "target-input",
           "insider-gossip",
-          "choose-chat-btn",
           "revenge-self-handle",
           "revenge-opponent-required",
           "revenge-opponent-optional-1",
           "revenge-opponent-optional-2",
-          "revenge-opponent-optional-3",
-          "revenge-choose-required",
-          "revenge-choose-optional-1",
-          "revenge-choose-optional-2",
-          "revenge-choose-optional-3"
+          "revenge-opponent-optional-3"
         ].forEach(function (id) {
           var el = document.getElementById(id);
           if (!el) return;
@@ -2388,16 +2371,11 @@
         [
           "target-input",
           "insider-gossip",
-          "choose-chat-btn",
           "revenge-self-handle",
           "revenge-opponent-required",
           "revenge-opponent-optional-1",
           "revenge-opponent-optional-2",
-          "revenge-opponent-optional-3",
-          "revenge-choose-required",
-          "revenge-choose-optional-1",
-          "revenge-choose-optional-2",
-          "revenge-choose-optional-3"
+          "revenge-opponent-optional-3"
         ].forEach(function (id) {
           var el = document.getElementById(id);
           if (!el) return;
@@ -5954,36 +5932,24 @@
         }
       }
 
-      function chooseFromChats(event) {
-        var preferredInput = null;
-        try {
-          var sourceBtn = event && event.currentTarget ? event.currentTarget : null;
-          var boundId = sourceBtn && sourceBtn.getAttribute ? sourceBtn.getAttribute("data-revenge-pick-for") : "";
-          if (boundId) preferredInput = document.getElementById(boundId);
-        } catch (_bindErr) {}
-
+      function triggerViralInvite() {
+        var botUsername = "cloutmeter_ai_bot";
+        var myTgId = resolveCurrentUserId();
+        var referralLink = "https://t.me/" + botUsername + "?startapp=ref_" + myTgId;
+        var shareText = encodeURIComponent("💥 CHOOSE THIS CHAT! I'm inviting you to the Clout Meter AI Arcade. Tap to scan your account and claim 3 free credits instantly:");
         if (window.Telegram && window.Telegram.WebApp) {
-          const botUsername = "cloutmeter_ai_bot";
-          const targetUrl = `https://t.me/${botUsername}?startapp=scan`;
-          const shareText = encodeURIComponent("🔥 CLOUT METER ARCADE DETECTED AURA VIBRATIONS! Choose this chat to scan your account:");
-
-          // The production-standard native deep-link hook that works on 100% of all Telegram versions
-          window.location.href = `https://t.me/share/url?url=${encodeURIComponent(targetUrl)}&text=${shareText}`;
-        } else {
-          // Desktop development simulation fallback path
-          const usernameInput = preferredInput || document.querySelector("input[placeholder*='username']");
-          if (usernameInput) {
-            usernameInput.value = "@arcade_warrior";
-            usernameInput.dispatchEvent(new Event('input'));
-          }
+          // Native Telegram share sheet: forwards the personal ref deep-link.
+          window.location.href = "https://t.me/share/url?url=" + encodeURIComponent(referralLink) + "&text=" + shareText;
+          return;
         }
+        try {
+          if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            navigator.clipboard.writeText(referralLink);
+          }
+        } catch (_copyErr) {}
+        alert("Simulation mode: Shared link copied to clipboard.");
       }
-      window.chooseFromChats = chooseFromChats;
-
-      function chooseRevengeOpponentFromChats() {
-        chooseFromChats();
-      }
-      window.chooseRevengeOpponentFromChats = chooseRevengeOpponentFromChats;
+      window.triggerViralInvite = triggerViralInvite;
 
       function loadPublicConfig() {
         return fetch("/api/public-config").then(function (res) {
