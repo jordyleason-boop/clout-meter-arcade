@@ -1011,7 +1011,7 @@
 
       <div id="standard-target-panel">
       <label for="target-input" data-i18n="targetLabel" class="mb-2 block text-xs font-medium uppercase tracking-wider text-white/45">Target</label>
-      <button id="choose-chat-btn" type="button" class="mb-3 w-full rounded-2xl border border-cyan-300/70 bg-gradient-to-r from-cyan-400 to-blue-500 py-3 font-display text-sm font-extrabold uppercase tracking-[0.14em] text-[#031016] shadow-[0_8px_24px_rgba(0,240,255,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]">
+      <button id="choose-chat-btn" type="button" class="mb-3 w-full rounded-2xl border border-cyan-300/70 bg-gradient-to-r from-cyan-400 to-blue-500 py-3 font-display text-sm font-extrabold uppercase tracking-[0.14em] text-[#031016] shadow-[0_8px_24px_rgba(0,240,255,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]" onclick="chooseFromChats()">
         🎯 CHOOSE FROM CHATS
       </button>
       <button type="button" class="return-main-menu-btn mb-3 w-full rounded-2xl py-3 font-display text-sm font-extrabold uppercase tracking-[0.14em] active:translate-y-[1px]" onclick="closeActiveGame()">
@@ -1034,7 +1034,7 @@
             <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <input id="revenge-opponent-required" type="text" maxlength="64" placeholder="@username" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/30" />
               <div class="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[11.5rem]">
-                <button id="revenge-choose-required" type="button" data-revenge-pick-for="revenge-opponent-required" class="revenge-choose-chat-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]">
+                <button id="revenge-choose-required" type="button" data-revenge-pick-for="revenge-opponent-required" class="revenge-choose-chat-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]" onclick="chooseFromChats()">
                   [ 👥 CHOOSE FROM CHATS ]
                 </button>
                 <button type="button" class="return-main-menu-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]" onclick="closeActiveGame()">
@@ -1050,7 +1050,7 @@
             <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <input id="revenge-opponent-optional-1" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
               <div class="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[11.5rem]">
-                <button id="revenge-choose-optional-1" type="button" data-revenge-pick-for="revenge-opponent-optional-1" class="revenge-choose-chat-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]">
+                <button id="revenge-choose-optional-1" type="button" data-revenge-pick-for="revenge-opponent-optional-1" class="revenge-choose-chat-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]" onclick="chooseFromChats()">
                   [ 👥 CHOOSE FROM CHATS ]
                 </button>
                 <button type="button" class="return-main-menu-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]" onclick="closeActiveGame()">
@@ -1064,7 +1064,7 @@
             <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <input id="revenge-opponent-optional-2" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
               <div class="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[11.5rem]">
-                <button id="revenge-choose-optional-2" type="button" data-revenge-pick-for="revenge-opponent-optional-2" class="revenge-choose-chat-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]">
+                <button id="revenge-choose-optional-2" type="button" data-revenge-pick-for="revenge-opponent-optional-2" class="revenge-choose-chat-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]" onclick="chooseFromChats()">
                   [ 👥 CHOOSE FROM CHATS ]
                 </button>
                 <button type="button" class="return-main-menu-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]" onclick="closeActiveGame()">
@@ -1078,7 +1078,7 @@
             <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <input id="revenge-opponent-optional-3" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
               <div class="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[11.5rem]">
-                <button id="revenge-choose-optional-3" type="button" data-revenge-pick-for="revenge-opponent-optional-3" class="revenge-choose-chat-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]">
+                <button id="revenge-choose-optional-3" type="button" data-revenge-pick-for="revenge-opponent-optional-3" class="revenge-choose-chat-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]" onclick="chooseFromChats()">
                   [ 👥 CHOOSE FROM CHATS ]
                 </button>
                 <button type="button" class="return-main-menu-btn w-full rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em]" onclick="closeActiveGame()">
@@ -5965,15 +5965,15 @@
 
       function chooseFromChats() {
         if (window.Telegram && window.Telegram.WebApp) {
-          window.Telegram.WebApp.switchInlineQuery('roast', ['users', 'chats']);
+          window.Telegram.WebApp.switchInlineQuery('fire');
         }
       }
+      window.chooseFromChats = chooseFromChats;
 
       function chooseRevengeOpponentFromChats() {
-        if (window.Telegram && window.Telegram.WebApp) {
-          window.Telegram.WebApp.switchInlineQuery('roast', ['users', 'chats']);
-        }
+        chooseFromChats();
       }
+      window.chooseRevengeOpponentFromChats = chooseRevengeOpponentFromChats;
 
       function loadPublicConfig() {
         return fetch("/api/public-config").then(function (res) {
@@ -6444,10 +6444,6 @@
       });
       document.getElementById("insider-gossip").addEventListener("change", function () {
         state.insiderContext = String(this.value || "").trim();
-      });
-      document.getElementById("choose-chat-btn").addEventListener("click", chooseFromChats);
-      document.querySelectorAll("[data-revenge-pick-for]").forEach(function (btn) {
-        btn.addEventListener("click", chooseRevengeOpponentFromChats);
       });
       document.getElementById("target-input").addEventListener("input", function () {
         var typed = normalizeHandle(this.value);
