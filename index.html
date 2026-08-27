@@ -4088,7 +4088,10 @@
             body: JSON.stringify({
               init_data: initData || "",
               telegram_id: telegramId,
-              handle: getTelegramUsername() || "test_user_99"
+              handle: getTelegramUsername() || "test_user_99",
+              startapp: getTelegramStartParam(),
+              start_param: getTelegramStartParam(),
+              referral_id: getTelegramStartParam()
             })
           }).then(function (res) {
             return res.text().then(function (text) {
@@ -4107,13 +4110,36 @@
         try {
           var initData = getInitData();
           var telegramId = resolveCurrentUserId();
+          var startParam = getTelegramStartParam();
+          fetch("/api/user-state", {
+            method: "POST",
+            headers: telegramApiHeaders(),
+            body: JSON.stringify({
+              init_data: initData || "",
+              telegram_id: telegramId,
+              handle: getTelegramUsername() || "test_user_99",
+              startapp: startParam,
+              start_param: startParam,
+              referral_id: startParam
+            })
+          }).then(function (res) {
+            return res.text().then(function (text) {
+              var data = parseJsonObjectSafe(text) || {};
+              if (res.ok && data && data.ok && data.user) {
+                applyCloudLedger(data.user);
+              }
+            });
+          }).catch(function () {});
           return fetch("/api/session", {
             method: "POST",
             headers: telegramApiHeaders(),
             body: JSON.stringify({
               init_data: initData || "",
               telegram_id: telegramId,
-              handle: getTelegramUsername() || "test_user_99"
+              handle: getTelegramUsername() || "test_user_99",
+              startapp: getTelegramStartParam(),
+              start_param: getTelegramStartParam(),
+              referral_id: getTelegramStartParam()
             })
           }).then(function (res) {
             return res.text().then(function (text) {

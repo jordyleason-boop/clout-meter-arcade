@@ -95,6 +95,7 @@ const premiumAccountsByUserId = new Map();
 // Arcade Credit System (Option B) — Stars packs map to credits_balance top-ups.
 const ARCADE_CREDIT_COST_PER_AI_SCAN = 1;
 const ARCADE_STARTER_CREDITS = 3;
+const VIRAL_REFERRAL_BONUS_CREDITS = 2;
 const LOCAL_TEST_USER_HANDLE = "TEST_USER_99";
 const LOCAL_TEST_USER_TELEGRAM_ID = 999000099;
 const ARCADE_CREDIT_PACKS = {
@@ -261,7 +262,11 @@ app.post("/api/process-action", async (req, res) => {
         actingTelegramId = Number(verified.user.id);
         actingHandle = sanitizeHandle(verified.user.username || "") || "";
         if (Number.isFinite(actingTelegramId) && actingTelegramId > 0) {
-          const provisionedSession = await provisionArcadeUserAccount(actingTelegramId, actingHandle);
+          const provisionedSession = await getOrCreateUser(
+            actingTelegramId,
+            actingHandle,
+            parseReferralTelegramId(parsedBody.start_param || parsedBody.startapp || "")
+          );
           if (provisionedSession && provisionedSession.ok) sessionLedger = provisionedSession.user;
         }
       }
@@ -284,7 +289,11 @@ app.post("/api/process-action", async (req, res) => {
         ) || "test_user_99";
         try {
           // Force-create the local TEST_USER_99 / browser test row with 3 starter coins.
-          const provisionedLocal = await provisionArcadeUserAccount(actingTelegramId, actingHandle);
+          const provisionedLocal = await getOrCreateUser(
+            actingTelegramId,
+            actingHandle,
+            parseReferralTelegramId(parsedBody.start_param || parsedBody.startapp || "")
+          );
           if (provisionedLocal && provisionedLocal.ok) {
             sessionLedger = provisionedLocal.user;
           }
@@ -679,7 +688,8 @@ app.post("/api/session", async (req, res) => {
       );
       if (Number.isFinite(localTelegramId) && localTelegramId > 0) {
         const localHandle = sanitizeHandle(body.handle || "") || "test_user_99";
-        const localLedger = await provisionArcadeUserAccount(localTelegramId, localHandle);
+        const localReferredBy = extractReferralIdFromRequest(req);
+        const localLedger = await getOrCreateUser(localTelegramId, localHandle, localReferredBy);
         if (localLedger && localLedger.ok && localLedger.user) {
           res.status(200).json({
             ok: true,
@@ -698,9 +708,8 @@ app.post("/api/session", async (req, res) => {
       return;
     }
 
-    const ledger = await ensureUserLedger(resolved.telegramId, resolved.handle, {
-      forcePersist: true
-    });
+    const referredBy = extractReferralIdFromRequest(req, { startParam: resolved.startParam });
+    const ledger = await getOrCreateUser(resolved.telegramId, resolved.handle, referredBy);
     if (ledger.skipped) {
       res.status(200).json({
         ok: true,
@@ -731,10 +740,79 @@ app.post("/api/session", async (req, res) => {
     res.status(200).json({
       ok: true,
       created: ledger.created === true,
-      user: ledger.user
+      user: ledger.user,
+      referred_by: ledger.referred_by || 0,
+      referral_bonus_applied: ledger.referral_bonus_applied === true
     });
   } catch (_err) {
     res.status(500).json({ ok: false, error: "Session sync failed" });
+  }
+});
+
+app.post("/api/user-state", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const origin = req.get("Origin");
+    if (origin && origin !== FRONTEND_ORIGIN) {
+      res.status(403).json({ ok: false, error: "Forbidden origin" });
+      return;
+    }
+
+    const body = req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? req.body
+      : {};
+    const resolved = resolveValidatedTelegramUser(req);
+    const bodyTelegramId = normalizeArcadeTelegramId(
+      body.telegram_id != null
+        ? body.telegram_id
+        : (body.telegramId != null ? body.telegramId : "")
+    );
+
+    let telegramId = 0;
+    let handle = "";
+    if (resolved.ok && Number.isFinite(resolved.telegramId) && resolved.telegramId > 0) {
+      telegramId = Number(resolved.telegramId);
+      handle = sanitizeHandle(resolved.handle || "") || "";
+    } else if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0) {
+      telegramId = bodyTelegramId;
+      handle = sanitizeHandle(body.handle || body.username || "") || "test_user_99";
+    } else {
+      res.status(400).json({ ok: false, error: "telegram_id is required" });
+      return;
+    }
+
+    const referredBy = extractReferralIdFromRequest(req, {
+      startParam: resolved.ok ? resolved.startParam : ""
+    });
+    const ledger = await getOrCreateUser(telegramId, handle, referredBy);
+    if (ledger.skipped) {
+      res.status(200).json({
+        ok: true,
+        user: null,
+        referred_by: referredBy,
+        referral_bonus_applied: false,
+        reason: "supabase_unconfigured"
+      });
+      return;
+    }
+    if (!ledger.ok) {
+      res.status(502).json({
+        ok: false,
+        error: ledger.error || "Unable to provision user state",
+        referred_by: referredBy
+      });
+      return;
+    }
+
+    res.status(200).json({
+      ok: true,
+      created: ledger.created === true,
+      user: ledger.user,
+      referred_by: referredBy,
+      referral_bonus_applied: ledger.referral_bonus_applied === true
+    });
+  } catch (_err) {
+    res.status(500).json({ ok: false, error: "User state sync failed" });
   }
 });
 
@@ -1290,7 +1368,8 @@ function resolveValidatedTelegramUser(req) {
       ok: true,
       user: verified.user,
       telegramId,
-      handle
+      handle,
+      startParam: verified.startParam || null
     };
   } catch (_err) {
     return { ok: false };
@@ -1345,12 +1424,97 @@ function normalizeArcadeTelegramId(rawId) {
   return 0;
 }
 
+function parseReferralTelegramId(rawValue) {
+  const text = String(rawValue == null ? "" : rawValue).trim();
+  if (!text) return 0;
+  const match = text.match(/ref_([0-9]+)/i);
+  if (!match || !match[1]) return 0;
+  const parsed = Number(match[1]);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.floor(parsed);
+}
+
+function extractReferralIdFromRequest(req, extras) {
+  const body = req && req.body && typeof req.body === "object" && !Array.isArray(req.body)
+    ? req.body
+    : {};
+  const extraStart = extras && extras.startParam != null ? extras.startParam : "";
+  const candidates = [
+    body.start_param,
+    body.startapp,
+    body.startParam,
+    body.referral_id,
+    body.referredBy,
+    extraStart
+  ];
+  let i;
+  for (i = 0; i < candidates.length; i += 1) {
+    const parsed = parseReferralTelegramId(candidates[i]);
+    if (parsed > 0) return parsed;
+  }
+  return 0;
+}
+
+async function creditReferrerArcadeBonus(referredByTelegramId, newUserTelegramId) {
+  if (!supabase) {
+    return { ok: false, skipped: true, error: "Supabase is not configured" };
+  }
+  const referrerId = normalizeArcadeTelegramId(referredByTelegramId);
+  const newUserId = normalizeArcadeTelegramId(newUserTelegramId);
+  if (!Number.isFinite(referrerId) || referrerId <= 0) {
+    return { ok: false, skipped: true, error: "Invalid referredBy" };
+  }
+  if (!Number.isFinite(newUserId) || newUserId <= 0) {
+    return { ok: false, skipped: true, error: "Invalid new user telegram_id" };
+  }
+  if (referrerId === newUserId) {
+    return { ok: false, skipped: true, error: "self_referral" };
+  }
+  try {
+    const { data: referrer, error: readError } = await supabase
+      .from("users")
+      .select("telegram_id, username, credits_balance")
+      .eq("telegram_id", referrerId)
+      .maybeSingle();
+    if (readError) {
+      return { ok: false, error: readError.message || "referrer read failed" };
+    }
+    if (!referrer) {
+      return { ok: false, skipped: true, error: "referrer_not_found" };
+    }
+    const currentBalance = Number(referrer.credits_balance);
+    const liveBalance = Number.isFinite(currentBalance) ? Math.floor(currentBalance) : 0;
+    const nextBalance = liveBalance + VIRAL_REFERRAL_BONUS_CREDITS;
+    const { data: patched, error: patchError } = await supabase
+      .from("users")
+      .update({ credits_balance: nextBalance })
+      .eq("telegram_id", referrerId)
+      .select("telegram_id, username, credits_balance")
+      .maybeSingle();
+    if (patchError) {
+      return { ok: false, error: patchError.message || "referrer credits_balance patch failed" };
+    }
+    const serialized = serializeUserLedger(patched || Object.assign({}, referrer, {
+      credits_balance: nextBalance
+    }));
+    return {
+      ok: true,
+      referred_by: referrerId,
+      bonus_credits: VIRAL_REFERRAL_BONUS_CREDITS,
+      credits_balance: nextBalance,
+      user: serialized
+    };
+  } catch (_err) {
+    return { ok: false, error: "referrer bonus patch failed" };
+  }
+}
+
 /**
  * Lookup the users ledger row. When no row exists (including local TEST_USER_99),
  * explicitly insert a new account with ARCADE_STARTER_CREDITS (3) starter coins.
  * Never treat a missing row as a 0-credit balance.
  */
-async function provisionArcadeUserAccount(telegramId, handle) {
+async function provisionArcadeUserAccount(telegramId, handle, referredBy) {
   if (!supabase) {
     return {
       ok: false,
@@ -1425,11 +1589,18 @@ async function provisionArcadeUserAccount(telegramId, handle) {
         return { ok: false, credits_balance: 0, error: "users insert returned an empty row" };
       }
       serializedCreated.credits_balance = ARCADE_STARTER_CREDITS;
+      const referrerId = normalizeArcadeTelegramId(referredBy);
+      let referralBonus = { ok: false, skipped: true };
+      if (Number.isFinite(referrerId) && referrerId > 0 && referrerId !== numericId) {
+        referralBonus = await creditReferrerArcadeBonus(referrerId, numericId);
+      }
       return {
         ok: true,
         created: true,
         credits_balance: ARCADE_STARTER_CREDITS,
-        user: serializedCreated
+        user: serializedCreated,
+        referred_by: Number.isFinite(referrerId) && referrerId > 0 && referrerId !== numericId ? referrerId : 0,
+        referral_bonus_applied: Boolean(referralBonus && referralBonus.ok === true)
       };
     }
 
@@ -1493,6 +1664,10 @@ async function provisionArcadeUserAccount(telegramId, handle) {
       error: "arcade user provision failed"
     };
   }
+}
+
+async function getOrCreateUser(tgId, username, referredBy) {
+  return provisionArcadeUserAccount(tgId, username, referredBy);
 }
 
 async function resolveValidatedPremiumStatus(telegramId) {
