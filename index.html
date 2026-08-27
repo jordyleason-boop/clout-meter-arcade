@@ -10,7 +10,7 @@
   <meta name="color-scheme" content="dark" />
   <title>Clout Meter</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+  <script src="https://sad.adsgram.ai/js/sad.min.js?v=44836"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -5879,10 +5879,6 @@
         return fetch("/api/public-config").then(function (res) {
           return res.ok ? res.json() : null;
         }).then(function (data) {
-          if (data && data.adsgram_global_block_id) {
-            initAdsGram(data.adsgram_global_block_id);
-            return;
-          }
           initAdsGram(ADSGRAM_BLOCK_ID);
         }).catch(function () {
           initAdsGram(ADSGRAM_BLOCK_ID);
