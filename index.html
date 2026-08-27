@@ -5936,28 +5936,16 @@
           if (boundId) preferredInput = document.getElementById(boundId);
         } catch (_bindErr) {}
 
-        function applyChosenUsername(formattedUser) {
+        if (window.Telegram && window.Telegram.WebApp) {
+          // This exact parameter forces the phone's native contact/group picker sheet to open smoothly
+          window.Telegram.WebApp.switchInlineQuery(' ', ['users', 'chats']);
+        } else {
+          // Local desktop browser simulation testing fallback path
           const usernameInput = preferredInput || document.querySelector("input[placeholder*='username']");
           if (usernameInput) {
-            usernameInput.value = formattedUser;
-            usernameInput.dispatchEvent(new Event("input"));
+            usernameInput.value = "@mock_friend";
+            usernameInput.dispatchEvent(new Event('input'));
           }
-        }
-
-        if (window.Telegram && window.Telegram.WebApp) {
-          window.Telegram.WebApp.requestContact((status, responseData) => {
-            if (status && responseData && responseData.contact) {
-              // Extract the name or phone info provided natively
-              const friendName = responseData.contact.first_name || "";
-              const formattedUser = "@" + friendName.toLowerCase().replace(/\s+/g, "");
-
-              applyChosenUsername(formattedUser);
-            }
-          });
-        } else {
-          // Desktop browser fallback testing string simulation
-          const simulatedUser = "@arcade_buddy";
-          applyChosenUsername(simulatedUser);
         }
       }
       window.chooseFromChats = chooseFromChats;
