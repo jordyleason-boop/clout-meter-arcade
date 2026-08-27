@@ -5936,10 +5936,22 @@
         var botUsername = "cloutmeter_ai_bot";
         var myTgId = resolveCurrentUserId();
         var referralLink = "https://t.me/" + botUsername + "?startapp=ref_" + myTgId;
-        var shareText = encodeURIComponent("💥 CHOOSE THIS CHAT! I'm inviting you to the Clout Meter AI Arcade. Tap to scan your account and claim 3 free credits instantly:");
+        var shareText = encodeURIComponent("💀 I just checked my digital ego on the Clout Meter AI Arcade. It completely incinerated my profile. Tap this link to get your own account roasted or see your real Aura Score instantly (plus get 3 free coins to start):");
+        function explainViralRewardLoop() {
+          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showPopup) {
+            window.Telegram.WebApp.showPopup({
+              title: "🕹️ DISPATCH COMPLETE",
+              message: "Your invite link has been generated! Your +2 FREE ARCADETOKENS will be automatically credited to your machine wallet the exact second your friend accepts the link and boots up their first scan.",
+              buttons: [{ type: "ok", text: "GOT IT" }]
+            });
+            return;
+          }
+          alert("Invite generated! +2 tokens will hit your account as soon as your friend runs their first scan module.");
+        }
         if (window.Telegram && window.Telegram.WebApp) {
           // Native Telegram share sheet: forwards the personal ref deep-link.
           window.location.href = "https://t.me/share/url?url=" + encodeURIComponent(referralLink) + "&text=" + shareText;
+          explainViralRewardLoop();
           return;
         }
         try {
@@ -5947,7 +5959,7 @@
             navigator.clipboard.writeText(referralLink);
           }
         } catch (_copyErr) {}
-        alert("Simulation mode: Shared link copied to clipboard.");
+        explainViralRewardLoop();
       }
       window.triggerViralInvite = triggerViralInvite;
 
