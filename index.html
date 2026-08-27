@@ -10,7 +10,6 @@
   <meta name="color-scheme" content="dark" />
   <title>Clout Meter</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://sad.adsgram.ai/js/sad.min.js?v=44836"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1173,7 +1172,7 @@
       <div id="adsgram-slot" data-ad-surface class="mt-4 rounded-2xl border border-dashed border-white/15 bg-black/25 p-4">
         <p data-i18n="adsgramTitle" class="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">AdsGram Rewarded Video</p>
         <p data-i18n="adsgramHint" class="mt-1 text-sm leading-relaxed text-white/55">📺 ADSGRAM REWARDED VIDEO: Watch a short sponsor video to score 1 FREE Arcade Coin instantly after your 3 free starter tokens are consumed!</p>
-        <button id="watch-ad-btn" type="button" onclick="triggerAdsgramVideo()" class="mt-3 w-full rounded-xl border border-sky-400/30 bg-sky-400/10 py-2.5 text-sm font-semibold text-sky-200">
+        <button id="watch-ad-btn" type="button" onclick="triggerPlatformVideoAd()" class="mt-3 w-full rounded-xl border border-sky-400/30 bg-sky-400/10 py-2.5 text-sm font-semibold text-sky-200">
           <span data-i18n="watchAd">Watch Ad</span>
         </button>
         <pre id="adsgram-log" class="mt-3 max-h-20 overflow-auto text-[11px] leading-relaxed text-white/35">AdsGram listeners ready: onReward, onSkip, onError</pre>
@@ -1245,7 +1244,7 @@
         <button id="buy-credits-50" type="button" data-credit-sku="credits_pack_50" class="arcade-pack-btn premium-glow w-full rounded-2xl bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-pink-500 px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] text-[#05030a] sm:text-sm">
           ⚡ Buy 50 Scans - 100 Stars
         </button>
-        <button id="watch-ad-free-coin" type="button" onclick="triggerAdsgramVideo()" class="arcade-watch-ad-btn w-full rounded-2xl px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] sm:text-sm">
+        <button id="watch-ad-free-coin" type="button" onclick="triggerPlatformVideoAd()" class="arcade-watch-ad-btn w-full rounded-2xl px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] sm:text-sm">
           📺 WATCH AD FOR 1 FREE COIN
         </button>
       </div>
@@ -1677,7 +1676,6 @@
       var REVENGE_LIVE_LAUNCH_BASE = "https://t.me/cloutmeter_ai_bot/CloutMeter/";
       var CLOUT_METER_APP_LINK = "https://t.me/cloutmeter_ai_bot/CloutMeter/";
       var REVENGE_LOCAL_TESTING_PLAYER_HANDLE = "@YOU";
-      var ADSGRAM_BLOCK_ID = "44836";
       var STORAGE_CREDITS_KEY = "arcade_credits_balance";
       var ARCADE_STARTER_CREDITS = 3;
       var LOCAL_BROWSER_TEST_USER_KEY = "TEST_USER_99";
@@ -1705,7 +1703,6 @@
       var ominousIntroPlayed = false;
       var ominousIntroGestureArmed = false;
       var premiumInvoiceStars = PREMIUM_FLASH_STARS;
-      var AdController = null;
       var state = {
         lang: "en",
         clout: 0,
@@ -2309,7 +2306,7 @@
       }
 
       function applyWalletScanButton(currentTokens) {
-        var adButton = document.getElementById("lock-btn") || document.querySelector("button[onclick*='lockTargetOrWatchAd']") || document.querySelector("button[onclick*='triggerAdsgramVideo']");
+        var adButton = document.getElementById("lock-btn") || document.querySelector("button[onclick*='lockTargetOrWatchAd']") || document.querySelector("button[onclick*='triggerPlatformVideoAd']");
         if (!adButton) return;
         var tokens = Number(currentTokens);
         if (!Number.isFinite(tokens)) tokens = 0;
@@ -2648,7 +2645,7 @@
       }
 
       function watchAdForFreeArcadeCoin() {
-        triggerAdsgramVideo();
+        triggerPlatformVideoAd();
       }
 
       function purchaseArcadeCreditPack(sku) {
@@ -5402,75 +5399,16 @@
         if (state.pendingTarget) abortProcess();
       }
 
-      function bindAdController(controller) {
-        AdController = controller;
-        if (!AdController || typeof AdController.addEventListener !== "function") return;
-        if (AdController.__cloutListenersBound === true) return;
-        AdController.__cloutListenersBound = true;
-        // Adsgram only accepts verified event names: onReward, onError, onSkip.
-        // Do NOT register onClose — it is rejected by the Adsgram platform framework.
-        AdController.addEventListener("onReward", function () {
-          injectTokenRewardDirectly();
-          var shopModal = document.getElementById("shop-modal");
-          if (shopModal && shopModal.hasAttribute("open") && typeof shopModal.close === "function") {
-            shopModal.close();
-          }
-          closeArcadeCoinShop();
-        });
-        AdController.addEventListener("onSkip", function () {
-          onAdsSkip();
-          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showAlert) {
-            window.Telegram.WebApp.showAlert("Video skipped! Complete the entire video to receive your free Arcade Coin.");
-          }
-        });
-        AdController.addEventListener("onError", function (err) {
-          console.error("Adsgram tracking exception:", err);
-          onAdsError(err);
-          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showAlert) {
-            window.Telegram.WebApp.showAlert("Network playback glitch. Check your connection and try again.");
-          }
-        });
-      }
-
-      function initAdsGram(blockId) {
-        var resolvedBlock = blockId || ADSGRAM_BLOCK_ID;
-        ADSGRAM_BLOCK_ID = resolvedBlock;
-        try {
-          var Adsgram = window.Adsgram || window.AdsGram;
-          if (Adsgram && typeof Adsgram.init === "function") {
-            bindAdController(Adsgram.init({ blockId: resolvedBlock }));
-            logAds(t("adReady"));
-            return;
-          }
-        } catch (err) {
-          logAds(t("adError") + " — " + (err && err.message ? err.message : "init"));
-        }
-        window.__cloutAdsGram = {
-          onReward: onAdsReward,
-          onError: onAdsError,
-          onSkip: onAdsSkip
-        };
-        logAds(t("adReady"));
-      }
-
       function showRewardedAd(target) {
         if (is_premium_user) {
           startSecureFetch(target, state.gateToken, state.pendingGossip || state.insiderContext || "");
           return;
         }
-        if (AdController && typeof AdController.show === "function") {
-          Promise.resolve(AdController.show()).catch(function (err) {
-            onAdsError(err || { message: "skipped" });
-          });
-          return;
-        }
-        logAds(t("adUnavailable"));
-        abortProcess({ keepAdBanner: true });
-        setStatus("Free lifetime passes consumed! Initializing sponsor video ad...");
+        triggerPlatformVideoAd();
       }
 
       function watchAd() {
-        triggerAdsgramVideo();
+        triggerPlatformVideoAd();
       }
 
       function pad2(value) {
@@ -5878,10 +5816,8 @@
       function loadPublicConfig() {
         return fetch("/api/public-config").then(function (res) {
           return res.ok ? res.json() : null;
-        }).then(function (data) {
-          initAdsGram(ADSGRAM_BLOCK_ID);
         }).catch(function () {
-          initAdsGram(ADSGRAM_BLOCK_ID);
+          return null;
         });
       }
 
@@ -6306,49 +6242,16 @@
           lockTarget();
           return;
         }
-        triggerAdsgramVideo();
+        triggerPlatformVideoAd();
       }
       window.lockTargetOrWatchAd = lockTargetOrWatchAd;
 
-      function triggerAdsgramVideo() {
-        var AdsgramSDK = window.Adsgram || window.AdsGram;
-        if (!AdsgramSDK || typeof AdsgramSDK.init !== "function") {
-          alert("Ad network initialization delayed. Please try again in a moment.");
-          return;
-        }
-
-        var adController = AdController;
-        if (!adController || typeof adController.show !== "function") {
-          try {
-            adController = AdsgramSDK.init({ blockId: ADSGRAM_BLOCK_ID });
-            bindAdController(adController);
-          } catch (initErr) {
-            console.error("Adsgram failed to initialize render bounds:", initErr);
-            alert("Ad network initialization delayed. Please try again in a moment.");
-            return;
-          }
-        }
-        if (!adController || typeof adController.show !== "function") {
-          alert("Ad network initialization delayed. Please try again in a moment.");
-          return;
-        }
-
-        if (!adController.__cloutListenersBound) {
-          bindAdController(adController);
-        }
-
-        logAds(t("adWatching"));
-        haptic("light");
-
-        var playPromise = typeof adController.load === "function"
-          ? adController.load().then(function () { return adController.show(); })
-          : Promise.resolve(adController.show());
-
-        playPromise.catch(function (err) {
-          console.error("Adsgram failed to initialize render bounds:", err);
-        });
+      function triggerPlatformVideoAd() {
+        console.log("Universal Ad loop initialized.");
+        // This allows us to drop a clean custom alternative SDK frame right here next
+        injectTokenRewardDirectly();
       }
-      window.triggerAdsgramVideo = triggerAdsgramVideo;
+      window.triggerPlatformVideoAd = triggerPlatformVideoAd;
 
       document.querySelectorAll("[data-hub]").forEach(function (card) {
         card.addEventListener("click", function () {
