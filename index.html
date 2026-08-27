@@ -1166,14 +1166,14 @@
         <span data-i18n="shareToTelegram">Share to Telegram</span>
       </button>
 
-      <button id="lock-btn" type="button" onclick="triggerAdsgramVideo()" class="lock-mode-free w-full rounded-2xl border border-fuchsia-300/70 bg-gradient-to-b from-fuchsia-400 via-pink-500 to-[#a80073] py-3.5 font-display text-base font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_8px_24px_rgba(255,0,170,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]">
+      <button id="lock-btn" type="button" onclick="lockTargetOrWatchAd()" class="lock-mode-free w-full rounded-2xl border border-fuchsia-300/70 bg-gradient-to-b from-fuchsia-400 via-pink-500 to-[#a80073] py-3.5 font-display text-base font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_8px_24px_rgba(255,0,170,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]">
         <span id="lock-btn-label" class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>
       </button>
 
       <div id="adsgram-slot" data-ad-surface class="mt-4 rounded-2xl border border-dashed border-white/15 bg-black/25 p-4">
         <p data-i18n="adsgramTitle" class="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">AdsGram Rewarded Video</p>
         <p data-i18n="adsgramHint" class="mt-1 text-sm leading-relaxed text-white/55">📺 ADSGRAM REWARDED VIDEO: Watch a short sponsor video to score 1 FREE Arcade Coin instantly after your 3 free starter tokens are consumed!</p>
-        <button id="watch-ad-btn" type="button" class="mt-3 w-full rounded-xl border border-sky-400/30 bg-sky-400/10 py-2.5 text-sm font-semibold text-sky-200">
+        <button id="watch-ad-btn" type="button" onclick="triggerAdsgramVideo()" class="mt-3 w-full rounded-xl border border-sky-400/30 bg-sky-400/10 py-2.5 text-sm font-semibold text-sky-200">
           <span data-i18n="watchAd">Watch Ad</span>
         </button>
         <pre id="adsgram-log" class="mt-3 max-h-20 overflow-auto text-[11px] leading-relaxed text-white/35">AdsGram listeners ready: onReward, onSkip, onError</pre>
@@ -1245,7 +1245,7 @@
         <button id="buy-credits-50" type="button" data-credit-sku="credits_pack_50" class="arcade-pack-btn premium-glow w-full rounded-2xl bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-pink-500 px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] text-[#05030a] sm:text-sm">
           ⚡ Buy 50 Scans - 100 Stars
         </button>
-        <button id="watch-ad-free-coin" type="button" class="arcade-watch-ad-btn w-full rounded-2xl px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] sm:text-sm">
+        <button id="watch-ad-free-coin" type="button" onclick="triggerAdsgramVideo()" class="arcade-watch-ad-btn w-full rounded-2xl px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] sm:text-sm">
           📺 WATCH AD FOR 1 FREE COIN
         </button>
       </div>
@@ -1700,7 +1700,6 @@
       var is_muted = false;
       var starInvoiceInFlight = false;
       var rewardAdInFlight = false;
-      var rewardAdSimulatorTimer = null;
       var arcadeAudioCtx = null;
       var scratchCooldownUntil = 0;
       var ominousIntroPlayed = false;
@@ -2310,8 +2309,7 @@
       }
 
       function applyWalletScanButton(currentTokens) {
-        var adButton = document.querySelector("button[onclick*='triggerAdsgramVideo']");
-        if (!adButton) adButton = document.getElementById("lock-btn");
+        var adButton = document.getElementById("lock-btn") || document.querySelector("button[onclick*='lockTargetOrWatchAd']") || document.querySelector("button[onclick*='triggerAdsgramVideo']");
         if (!adButton) return;
         var tokens = Number(currentTokens);
         if (!Number.isFinite(tokens)) tokens = 0;
@@ -2635,103 +2633,22 @@
         });
       }
 
-      function watchAdForFreeArcadeCoin() {
-        try {
-          if (rewardAdInFlight || starInvoiceInFlight) return;
-          rewardAdInFlight = true;
-          setArcadePackButtonsBusy(true);
-          var statusEl = document.getElementById("arcade-coin-status");
-          if (statusEl) statusEl.textContent = "Loading rewarded video…";
-          haptic("medium");
-
-          if (rewardAdSimulatorTimer) {
-            clearTimeout(rewardAdSimulatorTimer);
-            rewardAdSimulatorTimer = null;
-          }
-
-          function onRewardedVideoCompleted() {
-            claimRewardedAdArcadeCredit();
-          }
-
-          function onRewardedVideoFailed(message) {
-            rewardAdInFlight = false;
-            setArcadePackButtonsBusy(false);
-            if (statusEl) {
-              statusEl.textContent = message || "Rewarded video was not completed.";
-            }
-            haptic("error");
-          }
-
-          var webApp = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-          if (webApp && typeof webApp.showRewardedVideo === "function") {
-            if (statusEl) statusEl.textContent = "Watch the full ad to earn 1 free coin…";
-            runNativeTelegram(function (readyApp) {
-              try {
-                var maybePromise = readyApp.showRewardedVideo(function (status) {
-                var normalized = String(status == null ? "" : status).toLowerCase();
-                if (
-                  normalized === "completed" ||
-                  normalized === "complete" ||
-                  normalized === "reward" ||
-                  normalized === "rewarded" ||
-                  normalized === "paid" ||
-                  status === true
-                ) {
-                  onRewardedVideoCompleted();
-                  return;
-                }
-                if (
-                  normalized === "cancelled" ||
-                  normalized === "canceled" ||
-                  normalized === "closed" ||
-                  normalized === "failed" ||
-                  status === false
-                ) {
-                  onRewardedVideoFailed("Ad closed before completion. No coin awarded.");
-                  return;
-                }
-                onRewardedVideoCompleted();
-              });
-              if (maybePromise && typeof maybePromise.then === "function") {
-                maybePromise.then(function (status) {
-                  var normalized = String(status == null ? "" : status).toLowerCase();
-                  if (
-                    normalized === "completed" ||
-                    normalized === "complete" ||
-                    normalized === "reward" ||
-                    normalized === "rewarded" ||
-                    status === true ||
-                    status == null
-                  ) {
-                    onRewardedVideoCompleted();
-                    return;
-                  }
-                  onRewardedVideoFailed("Ad was not completed.");
-                }).catch(function () {
-                  onRewardedVideoFailed("Unable to play Telegram rewarded video.");
-                });
-              }
-            } catch (invokeErr) {
-              onRewardedVideoFailed("Unable to open Telegram rewarded video.");
-            }
-            });
-            return;
-          }
-
-          // Desktop / local browser fallback: simulate a completed rewarded ad after 3 seconds.
-          if (statusEl) {
-            statusEl.textContent = "Desktop simulator: watching ad… (3s)";
-          }
-          rewardAdSimulatorTimer = setTimeout(function () {
-            rewardAdSimulatorTimer = null;
-            onRewardedVideoCompleted();
-          }, 3000);
-        } catch (err) {
-          rewardAdInFlight = false;
-          setArcadePackButtonsBusy(false);
-          var failEl = document.getElementById("arcade-coin-status");
-          if (failEl) failEl.textContent = "Unable to start rewarded video.";
+      function injectTokenRewardDirectly() {
+        claimRewardedAdArcadeCredit();
+        var shopModal = document.getElementById("shop-modal");
+        if (shopModal && shopModal.hasAttribute("open") && typeof shopModal.close === "function") {
+          shopModal.close();
         }
+        closeArcadeCoinShop();
+        if (state.pendingTarget) {
+          consumeReward(state.pendingTarget);
+          return;
+        }
+        setStatus(t("adReward"));
+      }
+
+      function watchAdForFreeArcadeCoin() {
+        triggerAdsgramVideo();
       }
 
       function purchaseArcadeCreditPack(sku) {
@@ -4125,7 +4042,7 @@
               if (res.ok && data && data.ok && data.user) {
                 applyCloudLedger(data.user);
                 var currentTokens = data.user.credits_balance;
-                const adButton = document.querySelector("button[onclick*='triggerAdsgramVideo']");
+                var adButton = document.getElementById("lock-btn");
                 if (currentTokens > 0) {
                   if (adButton) {
                     adButton.innerHTML = '<span class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>';
@@ -5467,13 +5384,7 @@
         }
         logAds(t("adReward"));
         haptic("success");
-        // Secure backend deposit: POST /api/reward-ad → +1 credits_balance
-        claimRewardedAdArcadeCredit();
-        if (state.pendingTarget) {
-          consumeReward(state.pendingTarget);
-          return;
-        }
-        setStatus(t("adReward"));
+        injectTokenRewardDirectly();
       }
 
       function onAdsError(error) {
@@ -5494,16 +5405,30 @@
       function bindAdController(controller) {
         AdController = controller;
         if (!AdController || typeof AdController.addEventListener !== "function") return;
+        if (AdController.__cloutListenersBound === true) return;
+        AdController.__cloutListenersBound = true;
         // Adsgram only accepts verified event names: onReward, onError, onSkip.
         // Do NOT register onClose — it is rejected by the Adsgram platform framework.
-        AdController.addEventListener("onReward", function (result) {
-          onAdsReward(result);
-        });
-        AdController.addEventListener("onError", function (error) {
-          onAdsError(error);
+        AdController.addEventListener("onReward", function () {
+          injectTokenRewardDirectly();
+          var shopModal = document.getElementById("shop-modal");
+          if (shopModal && shopModal.hasAttribute("open") && typeof shopModal.close === "function") {
+            shopModal.close();
+          }
+          closeArcadeCoinShop();
         });
         AdController.addEventListener("onSkip", function () {
           onAdsSkip();
+          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showAlert) {
+            window.Telegram.WebApp.showAlert("Video skipped! Complete the entire video to receive your free Arcade Coin.");
+          }
+        });
+        AdController.addEventListener("onError", function (err) {
+          console.error("Adsgram tracking exception:", err);
+          onAdsError(err);
+          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showAlert) {
+            window.Telegram.WebApp.showAlert("Network playback glitch. Check your connection and try again.");
+          }
         });
       }
 
@@ -5545,20 +5470,7 @@
       }
 
       function watchAd() {
-        if (is_premium_user) return;
-        if (state.pendingTarget || state.scanning) return;
-        logAds(t("adWatching"));
-        haptic("light");
-        if (AdController && typeof AdController.show === "function") {
-          // onReward listener deposits +1 via /api/reward-ad — do not also .then(onAdsReward).
-          Promise.resolve(AdController.show()).catch(function (err) {
-            onAdsError(err || { message: "skipped" });
-          });
-          return;
-        }
-        // Telegram / desktop fallback still hits the same /api/reward-ad deposit path.
-        logAds(t("adUnavailable"));
-        watchAdForFreeArcadeCoin();
+        triggerAdsgramVideo();
       }
 
       function pad2(value) {
@@ -6392,13 +6304,53 @@
         });
       }
 
-      function triggerAdsgramVideo() {
+      function lockTargetOrWatchAd() {
         var currentTokens = Number(state.credits_balance) || 0;
         if (is_premium_user === true || currentTokens > 0) {
           lockTarget();
           return;
         }
-        watchAd();
+        triggerAdsgramVideo();
+      }
+      window.lockTargetOrWatchAd = lockTargetOrWatchAd;
+
+      function triggerAdsgramVideo() {
+        var AdsgramSDK = window.Adsgram || window.AdsGram;
+        if (!AdsgramSDK || typeof AdsgramSDK.init !== "function") {
+          alert("Ad network initialization delayed. Please try again in a moment.");
+          return;
+        }
+
+        var adController = AdController;
+        if (!adController || typeof adController.show !== "function") {
+          try {
+            adController = AdsgramSDK.init({ blockId: ADSGRAM_BLOCK_ID });
+            bindAdController(adController);
+          } catch (initErr) {
+            console.error("Adsgram failed to initialize render bounds:", initErr);
+            alert("Ad network initialization delayed. Please try again in a moment.");
+            return;
+          }
+        }
+        if (!adController || typeof adController.show !== "function") {
+          alert("Ad network initialization delayed. Please try again in a moment.");
+          return;
+        }
+
+        if (!adController.__cloutListenersBound) {
+          bindAdController(adController);
+        }
+
+        logAds(t("adWatching"));
+        haptic("light");
+
+        var playPromise = typeof adController.load === "function"
+          ? adController.load().then(function () { return adController.show(); })
+          : Promise.resolve(adController.show());
+
+        playPromise.catch(function (err) {
+          console.error("Adsgram failed to initialize render bounds:", err);
+        });
       }
       window.triggerAdsgramVideo = triggerAdsgramVideo;
 
@@ -6444,7 +6396,6 @@
         toggleMuteState();
         haptic("light");
       });
-      document.getElementById("watch-ad-btn").addEventListener("click", watchAd);
       ["pay-btn"].forEach(function (buttonId) {
         var buyBtn = document.getElementById(buttonId);
         if (!buyBtn) return;
@@ -6484,9 +6435,6 @@
       });
       document.getElementById("buy-credits-50").addEventListener("click", function () {
         purchaseArcadeCreditPack("credits_pack_50");
-      });
-      document.getElementById("watch-ad-free-coin").addEventListener("click", function () {
-        watchAdForFreeArcadeCoin();
       });
       document.getElementById("arcade-credits-meter").addEventListener("click", function () {
         openArcadeCoinShop({
