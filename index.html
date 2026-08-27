@@ -5896,7 +5896,7 @@
           var focusEl = document.getElementById(onUnavailableFocusId || "");
           if (focusEl && typeof focusEl.focus === "function") focusEl.focus();
         }
-        // Native picker methods (requestChat / switchInlineQuery) must run in the
+        // Native picker methods must run in the
         // same user-gesture stack as the button tap. Deferring through ready()
         // or rAF drops the handshake and Telegram throws WEBAPP_REQ_ID_INVALID.
         var webApp = window.Telegram && window.Telegram.WebApp;
@@ -5930,7 +5930,15 @@
 
       function chooseFromChats() {
         if (window.Telegram && window.Telegram.WebApp) {
-          window.Telegram.WebApp.switchInlineQuery('fire');
+          // Force open the native target chat/friend selection menu wrapper
+          const botUsername = "cloutmeter_ai_bot"; // Matches your screen handle
+          const shareUrl = `https://t.me/${botUsername}?startapp=scan`;
+          const msgText = encodeURIComponent("🔥 CLOUT METER ARCADE DETECTED AURA VIBRATIONS! Scan your account here:");
+
+          // Universal native Telegram deep-link sharing hook that brings up the friend/group picker modal sheet instantly
+          window.location.href = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${msgText}`;
+        } else {
+          alert("Telegram client environment not detected.");
         }
       }
       window.chooseFromChats = chooseFromChats;
