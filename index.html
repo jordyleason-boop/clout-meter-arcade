@@ -999,7 +999,7 @@
 
       <div id="standard-target-panel">
       <label for="target-input" data-i18n="targetLabel" class="mb-2 block text-xs font-medium uppercase tracking-wider text-white/45">Target</label>
-      <button id="choose-chat-btn" type="button" class="mb-3 w-full rounded-2xl border border-cyan-300/70 bg-gradient-to-r from-cyan-400 to-blue-500 py-3 font-display text-sm font-extrabold uppercase tracking-[0.14em] text-[#031016] shadow-[0_8px_24px_rgba(0,240,255,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]" onclick="chooseFromChats()">
+      <button id="choose-chat-btn" type="button" class="mb-3 w-full rounded-2xl border border-cyan-300/70 bg-gradient-to-r from-cyan-400 to-blue-500 py-3 font-display text-sm font-extrabold uppercase tracking-[0.14em] text-[#031016] shadow-[0_8px_24px_rgba(0,240,255,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]" onclick="chooseFromChats(event)">
         🎯 CHOOSE FROM CHATS
       </button>
       <input id="target-input" type="text" maxlength="80" data-i18n-placeholder="inputPlaceholder" placeholder="Enter @username or text description" class="mb-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none ring-gold/40 placeholder:text-white/30 focus:border-gold/40 focus:ring-2" />
@@ -1018,7 +1018,7 @@
           <label for="revenge-opponent-required" class="block text-xs font-medium uppercase tracking-wider text-fuchsia-200/80">Primary Rival</label>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <input id="revenge-opponent-required" type="text" maxlength="64" placeholder="@username" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/30" />
-              <button id="revenge-choose-required" type="button" data-revenge-pick-for="revenge-opponent-required" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats()">
+              <button id="revenge-choose-required" type="button" data-revenge-pick-for="revenge-opponent-required" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats(event)">
                 [ 👥 CHOOSE FROM CHATS ]
               </button>
             </div>
@@ -1029,7 +1029,7 @@
             <p class="revenge-vs-optional-label text-[10px] font-semibold uppercase tracking-[0.18em]">vs. (Optional)</p>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <input id="revenge-opponent-optional-1" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
-              <button id="revenge-choose-optional-1" type="button" data-revenge-pick-for="revenge-opponent-optional-1" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats()">
+              <button id="revenge-choose-optional-1" type="button" data-revenge-pick-for="revenge-opponent-optional-1" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats(event)">
                 [ 👥 CHOOSE FROM CHATS ]
               </button>
             </div>
@@ -1038,7 +1038,7 @@
             <p class="revenge-vs-optional-label text-[10px] font-semibold uppercase tracking-[0.18em]">vs. (Optional)</p>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <input id="revenge-opponent-optional-2" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
-              <button id="revenge-choose-optional-2" type="button" data-revenge-pick-for="revenge-opponent-optional-2" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats()">
+              <button id="revenge-choose-optional-2" type="button" data-revenge-pick-for="revenge-opponent-optional-2" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats(event)">
                 [ 👥 CHOOSE FROM CHATS ]
               </button>
             </div>
@@ -1047,7 +1047,7 @@
             <p class="revenge-vs-optional-label text-[10px] font-semibold uppercase tracking-[0.18em]">vs. (Optional)</p>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <input id="revenge-opponent-optional-3" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
-              <button id="revenge-choose-optional-3" type="button" data-revenge-pick-for="revenge-opponent-optional-3" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats()">
+              <button id="revenge-choose-optional-3" type="button" data-revenge-pick-for="revenge-opponent-optional-3" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]" onclick="chooseFromChats(event)">
                 [ 👥 CHOOSE FROM CHATS ]
               </button>
             </div>
@@ -5928,17 +5928,36 @@
         }
       }
 
-      function chooseFromChats() {
-        if (window.Telegram && window.Telegram.WebApp) {
-          // Force open the native target chat/friend selection menu wrapper
-          const botUsername = "cloutmeter_ai_bot"; // Matches your screen handle
-          const shareUrl = `https://t.me/${botUsername}?startapp=scan`;
-          const msgText = encodeURIComponent("🔥 CLOUT METER ARCADE DETECTED AURA VIBRATIONS! Scan your account here:");
+      function chooseFromChats(event) {
+        var preferredInput = null;
+        try {
+          var sourceBtn = event && event.currentTarget ? event.currentTarget : null;
+          var boundId = sourceBtn && sourceBtn.getAttribute ? sourceBtn.getAttribute("data-revenge-pick-for") : "";
+          if (boundId) preferredInput = document.getElementById(boundId);
+        } catch (_bindErr) {}
 
-          // Universal native Telegram deep-link sharing hook that brings up the friend/group picker modal sheet instantly
-          window.location.href = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${msgText}`;
+        function applyChosenUsername(formattedUser) {
+          const usernameInput = preferredInput || document.querySelector("input[placeholder*='username']");
+          if (usernameInput) {
+            usernameInput.value = formattedUser;
+            usernameInput.dispatchEvent(new Event("input"));
+          }
+        }
+
+        if (window.Telegram && window.Telegram.WebApp) {
+          window.Telegram.WebApp.requestContact((status, responseData) => {
+            if (status && responseData && responseData.contact) {
+              // Extract the name or phone info provided natively
+              const friendName = responseData.contact.first_name || "";
+              const formattedUser = "@" + friendName.toLowerCase().replace(/\s+/g, "");
+
+              applyChosenUsername(formattedUser);
+            }
+          });
         } else {
-          alert("Telegram client environment not detected.");
+          // Desktop browser fallback testing string simulation
+          const simulatedUser = "@arcade_buddy";
+          applyChosenUsername(simulatedUser);
         }
       }
       window.chooseFromChats = chooseFromChats;
