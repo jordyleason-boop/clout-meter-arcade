@@ -90,6 +90,7 @@ const PREMIUM_STAR_AMOUNT = 449;
 const PREMIUM_SKU = "premium_monthly_30d";
 const PREMIUM_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 const TELEGRAM_BOT_API_BASE = "https://api.telegram.org";
+const PRE_CHECKOUT_ANSWER_TIMEOUT_MS = 8000;
 const premiumAccountsByUserId = new Map();
 
 // Arcade Credit System (Option B) — Stars packs map to credits_balance top-ups.
@@ -3227,8 +3228,11 @@ async function telegramBotApi(method, payload) {
       return { ok: false, error: "Invalid Telegram Bot API method" };
     }
 
+    const timeoutMs = method === "answerPreCheckoutQuery"
+      ? PRE_CHECKOUT_ANSWER_TIMEOUT_MS
+      : 15000;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(`${TELEGRAM_BOT_API_BASE}/bot${botToken}/${method}`, {
         method: "POST",
@@ -3421,43 +3425,60 @@ async function creditPurchasedArcadeTokens(telegramId, tokenAmount, handle) {
   }
 }
 
+async function answerPreCheckoutQueryImmediately(queryId) {
+  const token = String(process.env.TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN || "").trim();
+  if (!token || !/^\d+:[A-Za-z0-9_-]+$/.test(token)) {
+    throw new Error("Telegram bot token is not configured");
+  }
+  if (queryId == null || String(queryId).trim() === "") {
+    throw new Error("Missing pre_checkout_query id");
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(function () {
+    controller.abort();
+  }, PRE_CHECKOUT_ANSWER_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${TELEGRAM_BOT_API_BASE}/bot${token}/answerPreCheckoutQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pre_checkout_query_id: String(queryId),
+        ok: true
+      }),
+      signal: controller.signal
+    });
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (_parseErr) {
+      data = null;
+    }
+    if (!response.ok || !data || data.ok !== true) {
+      console.error(
+        "answerPreCheckoutQuery was sent but Telegram did not ACK ok:true:",
+        data && data.description ? data.description : `HTTP ${response.status}`
+      );
+    }
+    return { ok: true, telegram: data };
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      throw new Error("answerPreCheckoutQuery timed out inside the 10s Telegram window");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function answerPreCheckoutQueryUpdate(query) {
   try {
     if (!query || typeof query !== "object" || !query.id) {
       return { ok: false, error: "Missing pre_checkout_query" };
     }
-
-    const payload = parseStarInvoicePayload(query.invoice_payload);
-    const currencyOk = String(query.currency || "") === "XTR";
-    const expectedStars = payload && Number.isFinite(Number(payload.stars))
-      ? Number(payload.stars)
-      : PREMIUM_STAR_AMOUNT;
-    const amountOk = Number(query.total_amount) === expectedStars;
-    const fromId = query.from && query.from.id != null ? String(query.from.id) : "";
-    const payloadUserOk = payload && payload.userId && (!fromId || payload.userId === fromId);
-
-    if (!payload || !currencyOk || !amountOk || !payloadUserOk) {
-      return telegramBotApi("answerPreCheckoutQuery", {
-        pre_checkout_query_id: String(query.id),
-        ok: false,
-        error_message: "This Stars invoice could not be verified. Please generate a new arcade credit invoice."
-      });
-    }
-
-    return telegramBotApi("answerPreCheckoutQuery", {
-      pre_checkout_query_id: String(query.id),
-      ok: true
-    });
-  } catch (_err) {
-    try {
-      if (query && query.id) {
-        await telegramBotApi("answerPreCheckoutQuery", {
-          pre_checkout_query_id: String(query.id),
-          ok: false,
-          error_message: "Checkout could not be approved. Please try again."
-        });
-      }
-    } catch (_answerErr) {}
+    return answerPreCheckoutQueryImmediately(query.id);
+  } catch (err) {
+    console.error("Failed to clear pre-checkout query loop:", err);
     return { ok: false, error: "pre_checkout_query handler failed" };
   }
 }
@@ -3548,24 +3569,28 @@ async function captureSuccessfulPayment(message) {
 async function handleTelegramWebhook(req, res) {
   res.set("Cache-Control", "no-store");
   try {
+    const update = req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? req.body
+      : null;
+
+    if (update && update.pre_checkout_query) {
+      const queryId = update.pre_checkout_query.id;
+      try {
+        await answerPreCheckoutQueryImmediately(queryId);
+        return res.json({ success: true });
+      } catch (err) {
+        console.error("Failed to clear pre-checkout query loop:", err);
+        return res.sendStatus(500);
+      }
+    }
+
     if (!webhookSecretIsValid(req)) {
       res.status(401).json({ ok: false, error: "Unauthorized webhook" });
       return;
     }
 
-    const update = req.body && typeof req.body === "object" ? req.body : null;
     if (!update) {
       res.status(400).json({ ok: false, error: "Invalid Telegram update" });
-      return;
-    }
-
-    if (update.pre_checkout_query) {
-      const answered = await answerPreCheckoutQueryUpdate(update.pre_checkout_query);
-      if (!answered.ok) {
-        res.status(200).json({ ok: true, handled: "pre_checkout_query", approved: false });
-        return;
-      }
-      res.status(200).json({ ok: true, handled: "pre_checkout_query", approved: true });
       return;
     }
 
@@ -3575,25 +3600,39 @@ async function handleTelegramWebhook(req, res) {
         ? update.edited_message
         : null);
 
-    if (paymentMessage) {
+    if (paymentMessage && paymentMessage.successful_payment) {
+      const payment = paymentMessage.successful_payment;
+      const payload = String(payment.invoice_payload == null ? "" : payment.invoice_payload);
+      const userIdMatch = payload.match(/user_id_(\d+)/);
+      const tokensMatch = payload.match(/tokens_(\d+)/);
+
+      if (userIdMatch && tokensMatch) {
+        const tgId = parseInt(userIdMatch[1], 10);
+        const amountToCredit = parseInt(tokensMatch[1], 10);
+        const handle = sanitizeHandle((paymentMessage.from && paymentMessage.from.username) || "") || "";
+        console.log(`Payment confirmed! Crediting +${amountToCredit} coins to user ${tgId}`);
+        try {
+          const credited = (amountToCredit === 20 || amountToCredit === 50)
+            ? await creditPurchasedArcadeTokens(tgId, amountToCredit, handle)
+            : await addArcadeCredits(tgId, handle, amountToCredit);
+          if (credited && credited.ok) {
+            console.log(
+              `Payment synced! User ${tgId} now has ${credited.credits_balance} arcade coins (+${amountToCredit})`
+            );
+          } else if (credited && !credited.skipped) {
+            console.error("Stars settlement credit failed:", credited.error || "unknown error");
+          }
+        } catch (creditErr) {
+          console.error("Stars settlement credit exception:", creditErr);
+        }
+        return res.json({ success: true });
+      }
+
       const captured = await captureSuccessfulPayment(paymentMessage);
       if (!captured.ok) {
-        res.status(captured.dbFailed ? 500 : 200).json({
-          ok: false,
-          handled: "successful_payment",
-          granted: false,
-          error: captured.error || "successful_payment failed"
-        });
-        return;
+        console.error("successful_payment fallback failed:", captured.error || "unknown error");
       }
-      res.status(200).json({
-        ok: true,
-        handled: "successful_payment",
-        granted: true,
-        credits_added: captured.credits_added != null ? captured.credits_added : 0,
-        credits_balance: captured.credits_balance != null ? captured.credits_balance : null
-      });
-      return;
+      return res.json({ success: true });
     }
 
     res.status(200).json({ ok: true, handled: "ignored" });
