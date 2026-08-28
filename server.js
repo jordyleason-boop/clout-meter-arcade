@@ -1045,7 +1045,7 @@ app.post("/api/purchase-tokens", async (req, res) => {
       return;
     }
 
-    const starAmount = token_amount === 20 ? 50 : 100;
+    const star_price = token_amount === 20 ? 50 : 100;
     const resolved = resolveValidatedTelegramUser(req);
     const bodyTelegramId = normalizeArcadeTelegramId(
       body.telegram_id != null
@@ -1078,19 +1078,19 @@ app.post("/api/purchase-tokens", async (req, res) => {
       return;
     }
 
-    const invoicePayload = `user_ref_${telegram_id}_amount_${token_amount}`;
+    const invoicePayload = `user_id_${telegram_id}_tokens_${token_amount}`;
     if (Buffer.byteLength(invoicePayload, "utf8") > 128) {
       res.status(500).json({ success: false, error: "Invoice payload exceeded Telegram size limits" });
       return;
     }
 
     const created = await telegramBotApi("createInvoiceLink", {
-      title: `${token_amount} Arcade Scans`,
-      description: `Top up your arcade machine wallet with ${token_amount} premium AI scans!`,
+      title: `${token_amount} Arcade Coins`,
+      description: `Top up your arcade machine balance with ${token_amount} premium clout scan matches!`,
       payload: invoicePayload,
       provider_token: "",
       currency: "XTR",
-      prices: [{ label: `${token_amount} Scans Bundle`, amount: starAmount }]
+      prices: [{ label: `${token_amount} Scans Pack`, amount: star_price }]
     });
 
     if (!created.ok || typeof created.result !== "string" || !created.result.trim()) {
@@ -1110,7 +1110,7 @@ app.post("/api/purchase-tokens", async (req, res) => {
       invoice_url: invoiceLink,
       telegram_id: telegram_id,
       token_amount: token_amount,
-      stars: starAmount,
+      stars: star_price,
       currency: "XTR"
     });
   } catch (_err) {
@@ -3266,7 +3266,8 @@ async function telegramBotApi(method, payload) {
 function parseUserRefInvoicePayload(raw) {
   try {
     const text = String(raw == null ? "" : raw).trim();
-    const match = text.match(/^user_ref_(\d+)_amount_(\d+)$/);
+    const match = text.match(/^user_id_(\d+)_tokens_(\d+)$/)
+      || text.match(/^user_ref_(\d+)_amount_(\d+)$/);
     if (!match) return null;
     const userId = match[1];
     const token_amount = parseInt(match[2], 10);
