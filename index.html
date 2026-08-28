@@ -779,11 +779,13 @@
     .scoreboard-status {
       min-width: 0;
       max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow: visible;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      white-space: normal;
+      text-overflow: clip;
       text-align: right;
-      line-height: 1.25;
+      line-height: 1.15;
     }
 
     .revenge-self-lock {
@@ -3593,7 +3595,7 @@
           pointsCell.className = "scoreboard-points text-right font-bold text-xs md:text-sm whitespace-nowrap";
           pointsCell.textContent = String(points);
           var tagCell = document.createElement("span");
-          tagCell.className = "scoreboard-status w-4/12 text-right truncate text-zinc-400 uppercase font-sans text-[10px] tracking-wide";
+          tagCell.className = "scoreboard-status w-4/12 text-right text-zinc-400 uppercase font-sans text-[9px] tracking-tighter leading-tight break-words pl-1";
           tagCell.textContent = tag;
           line.appendChild(rankCell);
           line.appendChild(nameCell);
@@ -5137,7 +5139,7 @@
           pointsCell.className = "scoreboard-points text-right font-bold text-xs md:text-sm whitespace-nowrap";
           pointsCell.textContent = String(points);
           var tagCell = document.createElement("span");
-          tagCell.className = "scoreboard-status w-4/12 text-right truncate text-zinc-400 uppercase font-sans text-[10px] tracking-wide";
+          tagCell.className = "scoreboard-status w-4/12 text-right text-zinc-400 uppercase font-sans text-[9px] tracking-tighter leading-tight break-words pl-1";
           tagCell.textContent = tag;
           line.appendChild(rankCell);
           line.appendChild(nameCell);
