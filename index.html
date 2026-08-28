@@ -2844,8 +2844,9 @@
               throw new Error("Telegram did not return a checkout link");
             }
             if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openInvoice) {
-              invoiceOpened = true;
-              window.Telegram.WebApp.openInvoice(invoiceLink, function (status) {
+              try {
+                invoiceOpened = true;
+                window.Telegram.WebApp.openInvoice(invoiceLink, function (status) {
                 try {
                   if (status === "paid") {
                     if (statusEl) statusEl.textContent = "🎰 PAYMENT SETTLED! Fresh Arcade Coins are hitting your cabinet wallet now.";
@@ -2878,8 +2879,11 @@
                   arcadePurchaseInFlight = false;
                   setArcadePackButtonsBusy(false);
                 }
-              });
-              return;
+                });
+                return;
+              } catch (_openErr) {
+                invoiceOpened = false;
+              }
             }
             if (statusEl) {
               statusEl.textContent = "Telegram Stars payment wrapper unavailable in standard desktop browser viewports.";
