@@ -2,12 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#050508" />
   <meta name="color-scheme" content="dark" />
   <title>Clout Meter</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -372,8 +374,11 @@
       box-shadow: inset 0 0 0 1px rgba(255, 0, 170, 0.35), 0 24px 46px rgba(0, 0, 0, 0.58), 0 0 28px rgba(255, 0, 170, 0.2);
     }
 
-    .modal-backdrop.open .sheet {
-      transform: none;
+    #receipt-save-image {
+      -webkit-touch-callout: default;
+      -webkit-user-select: auto;
+      user-select: auto;
+      pointer-events: auto;
     }
 
     /* Mini-game card: natural content height — parent modal scrolls */
@@ -454,7 +459,8 @@
     #result-frost-wrap.hidden,
     #ad-gate-banner.hidden,
     #share-btn.hidden,
-    #skip-scratch-btn.hidden {
+    #skip-scratch-btn.hidden,
+    #scan-loading-bar.hidden {
       display: none !important;
       pointer-events: none !important;
     }
@@ -554,6 +560,36 @@
       text-shadow: 0 0 8px rgba(0, 240, 255, 0.85), 0 0 16px rgba(0, 240, 255, 0.45);
     }
 
+    .neon-box-blue {
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.28), inset 0 0 12px rgba(0, 240, 255, 0.06);
+    }
+
+    .neon-text-pink {
+      color: #ff8ad8;
+      text-shadow: 0 0 8px rgba(255, 0, 170, 0.9), 0 0 16px rgba(255, 0, 170, 0.5);
+    }
+
+    @keyframes auraCompilePulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
+
+    #load-timer .animate-pulse {
+      animation: auraCompilePulse 1.4s ease-in-out infinite;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     #lock-btn.lock-mode-ad {
       border-color: rgba(255, 214, 80, 0.75);
       background: linear-gradient(180deg, #ffe066, #ffb020 55%, #c47a00);
@@ -626,8 +662,18 @@
       transform: translate(-50%, 0);
     }
 
-    [dir="rtl"] .sheet {
+    [dir="rtl"] .sheet,
+    body.rtl,
+    body.text-right {
       text-align: right;
+    }
+
+    #quick-start-guide-title,
+    #sponsor-reward-console-title,
+    #lock-btn-label {
+      overflow-wrap: break-word;
+      word-break: break-word;
+      white-space: normal;
     }
 
     input, button, textarea {
@@ -638,6 +684,25 @@
       border: 1px solid rgba(255, 48, 80, 0.78);
       background: radial-gradient(120% 140% at 50% 0%, rgba(255, 40, 80, 0.18), rgba(12, 4, 16, 0.92));
       box-shadow: 0 0 18px rgba(255, 32, 80, 0.42), inset 0 0 0 1px rgba(255, 90, 110, 0.22);
+    }
+
+    #clout-metrics > div {
+      container-type: inline-size;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    #clout-metrics > div > span:first-child {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      line-height: 1.15;
+      font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+      font-size: clamp(8px, 15.5cqi, 12px);
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      overflow: hidden;
     }
 
     .metric-track {
@@ -689,7 +754,7 @@
     .scoreboard-head,
     .scoreboard-row {
       display: grid;
-      grid-template-columns: 2.35rem minmax(0, 1.45fr) 3.85rem minmax(0, 1.35fr);
+      grid-template-columns: 2rem minmax(0, 1fr) 3.4rem minmax(5.75rem, 1.15fr);
       gap: 0.35rem 0.4rem;
       align-items: start;
       width: 100%;
@@ -727,8 +792,7 @@
       text-align: right;
     }
 
-    .scoreboard-handle,
-    .scoreboard-status {
+    .scoreboard-handle {
       min-width: 0;
       max-width: 100%;
       width: auto;
@@ -742,7 +806,18 @@
     }
 
     .scoreboard-status {
+      min-width: 0;
+      width: auto !important;
+      max-width: 100%;
+      justify-self: stretch;
+      overflow: visible;
+      overflow-wrap: break-word;
+      word-break: normal;
+      white-space: normal;
+      text-overflow: clip;
       text-align: right;
+      line-height: 1.15;
+      hyphens: none;
     }
 
     .revenge-self-lock {
@@ -774,18 +849,6 @@
     .revenge-opponent-input:focus {
       border-color: rgba(255, 0, 170, 0.45);
       box-shadow: 0 0 0 2px rgba(255, 0, 170, 0.18), inset 0 0 12px rgba(0, 240, 255, 0.08);
-    }
-
-    .revenge-choose-chat-btn {
-      border: 1px solid rgba(192, 132, 252, 0.75);
-      background: linear-gradient(135deg, rgba(168, 85, 247, 0.95), rgba(126, 34, 206, 0.92) 55%, rgba(88, 28, 135, 0.95));
-      color: #f5e9ff;
-      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 22px rgba(168, 85, 247, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.28);
-      text-shadow: 0 0 10px rgba(233, 213, 255, 0.35);
-    }
-
-    .revenge-choose-chat-btn:active {
-      transform: translateY(1px);
     }
 
     .score-neon {
@@ -918,8 +981,17 @@
       </ul>
     </section>
 
+    <div id="main-menu" class="w-full">
+    <section class="w-full p-4 mb-4 bg-zinc-950 border border-cyan-400 rounded-xl neon-box-blue text-start">
+      <h3 id="quick-start-guide-title" data-i18n="startGuide" class="text-xs font-black neon-text-blue uppercase tracking-widest mb-2 break-words leading-tight">🕹️ QUICK START GUIDE</h3>
+      <ul class="text-[10px] space-y-1.5 text-zinc-300 font-sans">
+        <li>🔥 <strong class="text-white">1. Enter a Tag:</strong> Type any friend's @username or a description inside a game module.</li>
+        <li>📊 <strong class="text-white">2. Run AI Scan:</strong> Consume 1 Arcade Coin to generate an brutal profile roast or itemized Aura receipt ledger.</li>
+        <li>📸 <strong class="text-white">3. Share the Damage:</strong> Save the receipt image straight to your device photos to fire back at squads!</li>
+      </ul>
+    </section>
     <section id="hub-grid" class="grid w-full grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
-      <button type="button" data-hub="profile_roaster" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-left md:min-h-[280px] md:p-6">
+      <button type="button" data-hub="profile_roaster" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-start md:min-h-[280px] md:p-6">
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-orange-500/20 blur-2xl transition group-hover:bg-orange-400/30"></div>
         <div class="relative">
           <p class="mb-8 text-4xl">🔥</p>
@@ -929,7 +1001,7 @@
         </div>
       </button>
 
-      <button type="button" data-hub="aura_judge" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-left md:min-h-[280px] md:p-6">
+      <button type="button" data-hub="aura_judge" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-start md:min-h-[280px] md:p-6">
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/20 blur-2xl transition group-hover:bg-violet-400/30"></div>
         <div class="relative">
           <p class="mb-8 text-4xl">📊</p>
@@ -939,16 +1011,25 @@
         </div>
       </button>
 
-      <button type="button" data-hub="revenge_leaderboard" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-left md:min-h-[280px] md:p-6">
+      <button type="button" data-hub="revenge_leaderboard" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-start md:min-h-[280px] md:p-6">
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-rose-500/20 blur-2xl transition group-hover:bg-rose-400/30"></div>
         <div class="relative">
           <p class="mb-8 text-4xl">⚔️</p>
-          <h2 data-i18n="card3Title" class="font-display text-2xl font-extrabold uppercase leading-tight tracking-[0.08em] text-cyan-100">Revenge Leaderboard</h2>
+          <h2 data-i18n="card3Title" class="font-display text-base sm:text-lg font-extrabold uppercase leading-tight tracking-[0.08em] text-cyan-100">Revenge Leaderboard</h2>
           <p data-i18n="card3Sub" class="mt-2 text-sm text-white/55">See who is cloutless</p>
           <span data-i18n="openTool" class="mt-6 inline-flex items-center text-xs font-semibold uppercase tracking-[0.2em] text-rose-300/90">Open</span>
         </div>
       </button>
     </section>
+
+    <section class="w-full p-4 mt-4 bg-zinc-950 border border-dashed border-pink-500 rounded-xl text-center">
+      <h4 class="text-xs font-black neon-text-pink uppercase tracking-widest mb-1">🎮 MULTIPLAYER REFILL ACTIVE</h4>
+      <p class="text-[10px] text-zinc-400 mb-3">Invite a friend to the arcade panel. Secure +2 FREE COINS the moment they boot their first scan match!</p>
+      <button onclick="triggerViralInvite()" class="w-full py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 text-black font-black text-xs uppercase tracking-widest rounded-lg transition active:scale-95 cursor-pointer">
+        🚀 INVITE SQUAD (+2 TOKENS)
+      </button>
+    </section>
+    </div>
 
     <footer class="mt-8 flex w-full flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-fuchsia-400/20 pt-4 text-xs uppercase tracking-[0.16em]">
       <button id="open-disclaimer" type="button" class="compliance-link">Disclaimer</button>
@@ -971,9 +1052,6 @@
 
       <div id="standard-target-panel">
       <label for="target-input" data-i18n="targetLabel" class="mb-2 block text-xs font-medium uppercase tracking-wider text-white/45">Target</label>
-      <button id="choose-chat-btn" type="button" class="mb-3 w-full rounded-2xl border border-cyan-300/70 bg-gradient-to-r from-cyan-400 to-blue-500 py-3 font-display text-sm font-extrabold uppercase tracking-[0.14em] text-[#031016] shadow-[0_8px_24px_rgba(0,240,255,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]">
-        🎯 CHOOSE FROM CHATS
-      </button>
       <input id="target-input" type="text" maxlength="80" data-i18n-placeholder="inputPlaceholder" placeholder="Enter @username or text description" class="mb-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none ring-gold/40 placeholder:text-white/30 focus:border-gold/40 focus:ring-2" />
       <p id="target-locked-tag" class="mb-4 hidden rounded-full border border-cyan-300/40 bg-cyan-400/10 px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200 shadow-[0_0_14px_rgba(0,240,255,0.28)]"></p>
       </div>
@@ -988,41 +1066,21 @@
 
         <div class="space-y-2">
           <label for="revenge-opponent-required" class="block text-xs font-medium uppercase tracking-wider text-fuchsia-200/80">Primary Rival</label>
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-            <input id="revenge-opponent-required" type="text" maxlength="64" placeholder="@username" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/30" />
-            <button id="revenge-choose-required" type="button" data-revenge-pick-for="revenge-opponent-required" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]">
-              [ 👥 CHOOSE FROM CHATS ]
-            </button>
-          </div>
+          <input id="revenge-opponent-required" type="text" maxlength="64" placeholder="@username" autocomplete="off" class="revenge-opponent-input w-full rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/30" />
         </div>
 
         <div class="space-y-3 pt-1">
           <div class="space-y-1.5">
             <p class="revenge-vs-optional-label text-[10px] font-semibold uppercase tracking-[0.18em]">vs. (Optional)</p>
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-              <input id="revenge-opponent-optional-1" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
-              <button id="revenge-choose-optional-1" type="button" data-revenge-pick-for="revenge-opponent-optional-1" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]">
-                [ 👥 CHOOSE FROM CHATS ]
-              </button>
-            </div>
+            <input id="revenge-opponent-optional-1" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input w-full rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
           </div>
           <div class="space-y-1.5">
             <p class="revenge-vs-optional-label text-[10px] font-semibold uppercase tracking-[0.18em]">vs. (Optional)</p>
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-              <input id="revenge-opponent-optional-2" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
-              <button id="revenge-choose-optional-2" type="button" data-revenge-pick-for="revenge-opponent-optional-2" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]">
-                [ 👥 CHOOSE FROM CHATS ]
-              </button>
-            </div>
+            <input id="revenge-opponent-optional-2" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input w-full rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
           </div>
           <div class="space-y-1.5">
             <p class="revenge-vs-optional-label text-[10px] font-semibold uppercase tracking-[0.18em]">vs. (Optional)</p>
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-              <input id="revenge-opponent-optional-3" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input min-w-0 flex-1 rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
-              <button id="revenge-choose-optional-3" type="button" data-revenge-pick-for="revenge-opponent-optional-3" class="revenge-choose-chat-btn shrink-0 rounded-2xl px-3 py-3 font-display text-[11px] font-extrabold uppercase tracking-[0.08em] sm:min-w-[11.5rem]">
-                [ 👥 CHOOSE FROM CHATS ]
-              </button>
-            </div>
+            <input id="revenge-opponent-optional-3" type="text" maxlength="64" placeholder="@optional_rival" autocomplete="off" class="revenge-opponent-input w-full rounded-2xl px-4 py-3 text-sm text-white outline-none placeholder:text-white/28" />
           </div>
         </div>
       </div>
@@ -1031,12 +1089,14 @@
       <textarea id="insider-gossip" name="gossip" rows="3" maxlength="280" data-i18n-placeholder="insiderPlaceholder" placeholder="Drop inside jokes, squad lore, or known chaos..." class="mb-4 w-full resize-y rounded-2xl border border-fuchsia-300/25 bg-black/40 px-4 py-3 text-white outline-none ring-fuchsia-300/35 placeholder:text-white/35 focus:border-fuchsia-300/45 focus:ring-2"></textarea>
       </div>
 
-      <div class="mb-2 flex items-center justify-between text-xs text-white/50">
-        <span data-i18n="scanning">Aura scan</span>
-        <span id="load-timer">0s</span>
-      </div>
-      <div class="load-track mb-4 rounded-full">
-        <div id="load-fill" class="load-fill rounded-full"></div>
+      <div id="scan-loading-bar" class="hidden">
+        <div class="mb-2 flex items-center justify-between text-xs text-white/50">
+          <span data-i18n="scanning" class="sr-only">Aura scan</span>
+          <span id="load-timer"><span class="neon-text-blue animate-pulse">⚙️ COMPILING CELLS... 0s</span></span>
+        </div>
+        <div class="load-track mb-4 rounded-full">
+          <div id="load-fill" class="load-fill rounded-full"></div>
+        </div>
       </div>
 
       <p id="status-line" class="mb-4 min-h-[1.25rem] text-sm text-white/60"></p>
@@ -1053,19 +1113,19 @@
             <span id="slot-roast-handle" class="min-w-0 truncate font-display text-sm font-extrabold tracking-wide text-cyan-100">@unknown</span>
             <span data-gold-pass-badge class="gold-pass-badge rounded-full px-2 py-0.5 font-display text-[9px] font-extrabold uppercase tracking-[0.14em]">👑 GOLD PASS</span>
           </div>
-          <div id="clout-metrics" class="grid w-full grid-cols-3 gap-2 px-1 text-center sm:px-4">
-            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-cyan-400/20 p-2">
-              <span class="whitespace-nowrap text-center font-display text-[10px] font-black uppercase tracking-tight text-cyan-200 xs:text-xs sm:text-sm">Charisma</span>
+          <div id="clout-metrics" class="grid w-full grid-cols-3 gap-1.5 px-1 text-center sm:gap-2 sm:px-4">
+            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-cyan-400/20 px-1.5 py-2">
+              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center text-cyan-200">Charisma</span>
               <span id="metric-charisma-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-cyan-100 xs:text-xs sm:text-sm">0/10</span>
               <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-charisma-bar" class="metric-fill metric-cyan rounded-full"></div></div>
             </div>
-            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-fuchsia-400/20 p-2">
-              <span class="whitespace-nowrap text-center font-display text-[10px] font-black uppercase tracking-tight text-fuchsia-200 xs:text-xs sm:text-sm">Cringe</span>
+            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-fuchsia-400/20 px-1.5 py-2">
+              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center text-fuchsia-200">Cringe</span>
               <span id="metric-cringe-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-fuchsia-100 xs:text-xs sm:text-sm">0/10</span>
               <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-cringe-bar" class="metric-fill metric-magenta rounded-full"></div></div>
             </div>
-            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-purple-400/20 p-2">
-              <span class="whitespace-nowrap text-center font-display text-[10px] font-black uppercase tracking-tight text-purple-200 xs:text-xs sm:text-sm">Threat</span>
+            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-purple-400/20 px-1.5 py-2">
+              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center text-purple-200">Threat</span>
               <span id="metric-threat-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-purple-100 xs:text-xs sm:text-sm">0/10</span>
               <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-threat-bar" class="metric-fill metric-purple rounded-full"></div></div>
             </div>
@@ -1074,6 +1134,10 @@
             <p id="brutal-oneliner-title" class="mb-1 font-display text-[10px] font-extrabold uppercase tracking-[0.22em] text-rose-300">Brutal oneliner</p>
             <p id="slot-brutal_oneliner" class="font-display text-base font-extrabold leading-snug tracking-wide text-rose-50 sm:text-lg"></p>
           </blockquote>
+          <article class="result-slot rounded-2xl p-4">
+            <h4 id="vibe-matrix-title" data-i18n="slotVibe" class="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold/80">VIBE MATRIX</h4>
+            <p id="slot-vibe_matrix" class="whitespace-pre-wrap text-sm leading-relaxed text-white/85"></p>
+          </article>
           <article class="result-slot rounded-2xl p-4">
             <h4 data-i18n="slotBio" class="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold/80">Bio annihilation</h4>
             <p id="slot-bio_annihilation" class="whitespace-pre-wrap text-sm leading-relaxed text-white/85"></p>
@@ -1156,18 +1220,26 @@
         <span data-i18n="shareToTelegram">Share to Telegram</span>
       </button>
 
-      <button id="lock-btn" type="button" onclick="triggerAdsgramVideo()" class="lock-mode-free w-full rounded-2xl border border-fuchsia-300/70 bg-gradient-to-b from-fuchsia-400 via-pink-500 to-[#a80073] py-3.5 font-display text-base font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_8px_24px_rgba(255,0,170,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]">
-        <span id="lock-btn-label" class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>
+      <button id="lock-btn" type="button" onclick="lockTargetOrWatchAd()" class="lock-mode-free w-full rounded-2xl border border-fuchsia-300/70 bg-gradient-to-b from-fuchsia-400 via-pink-500 to-[#a80073] py-3.5 font-display text-base font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_8px_24px_rgba(255,0,170,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]">
+        <span id="lock-btn-label" class="text-xs font-black neon-text-blue break-words leading-tight">⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)</span>
       </button>
 
       <div id="adsgram-slot" data-ad-surface class="mt-4 rounded-2xl border border-dashed border-white/15 bg-black/25 p-4">
-        <p data-i18n="adsgramTitle" class="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">AdsGram Rewarded Video</p>
-        <p data-i18n="adsgramHint" class="mt-1 text-sm leading-relaxed text-white/55">📺 ADSGRAM REWARDED VIDEO: Watch a short sponsor video to score 1 FREE Arcade Coin instantly after your 3 free starter tokens are consumed!</p>
-        <button id="watch-ad-btn" type="button" class="mt-3 w-full rounded-xl border border-sky-400/30 bg-sky-400/10 py-2.5 text-sm font-semibold text-sky-200">
+        <p id="sponsor-reward-console-title" data-i18n="adConsole" class="text-xs font-semibold uppercase tracking-[0.18em] text-white/40 break-words leading-tight">📺 SPONSOR REWARD CONSOLE</p>
+        <p data-i18n="adsgramHint" class="mt-1 text-sm leading-relaxed text-white/55">Watch a short sponsor video to score 1 FREE Arcade Coin instantly after your 3 free starter tokens are consumed!</p>
+        <button id="watch-ad-btn" type="button" onclick="triggerPlatformVideoAd()" class="mt-3 w-full rounded-xl border border-sky-400/30 bg-sky-400/10 py-2.5 text-sm font-semibold text-sky-200">
           <span data-i18n="watchAd">Watch Ad</span>
         </button>
-        <pre id="adsgram-log" class="mt-3 max-h-20 overflow-auto text-[11px] leading-relaxed text-white/35">AdsGram listeners ready: onReward, onSkip, onError</pre>
+        <pre id="adsgram-log" class="mt-3 max-h-20 overflow-auto text-[11px] leading-relaxed text-white/35">Arcade playback stream ready.</pre>
       </div>
+
+      <section class="w-full p-4 mt-4 bg-zinc-950 border border-dashed border-pink-500 rounded-xl text-center">
+        <h4 class="text-xs font-black neon-text-pink uppercase tracking-widest mb-1">🎮 MULTIPLAYER REFILL ACTIVE</h4>
+        <p class="text-[10px] text-zinc-400 mb-3">Invite a friend to the arcade panel. Secure +2 FREE COINS the moment they boot their first scan match!</p>
+        <button onclick="triggerViralInvite()" class="w-full py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 text-black font-black text-xs uppercase tracking-widest rounded-lg transition active:scale-95 cursor-pointer">
+          🚀 INVITE SQUAD (+2 TOKENS)
+        </button>
+      </section>
     </div>
   </div>
 
@@ -1221,18 +1293,29 @@
         <p class="text-xs uppercase tracking-[0.16em] text-white/45">Arcade Coins</p>
       </div>
       <div class="mb-3 space-y-2.5">
-        <button id="buy-credits-20" type="button" data-credit-sku="credits_pack_20" class="arcade-pack-btn premium-glow w-full rounded-2xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-rose-400 px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] text-[#05030a] sm:text-sm">
+        <button id="buy-credits-20" type="button" data-credit-sku="credits_pack_20" onclick="processArcadePurchase(20)" class="arcade-pack-btn premium-glow w-full rounded-2xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-rose-400 px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] text-[#05030a] sm:text-sm">
           🔋 Buy 20 Scans - 50 Stars
         </button>
-        <button id="buy-credits-50" type="button" data-credit-sku="credits_pack_50" class="arcade-pack-btn premium-glow w-full rounded-2xl bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-pink-500 px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] text-[#05030a] sm:text-sm">
+        <button id="buy-credits-50" type="button" data-credit-sku="credits_pack_50" onclick="processArcadePurchase(50)" class="arcade-pack-btn premium-glow w-full rounded-2xl bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-pink-500 px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] text-[#05030a] sm:text-sm">
           ⚡ Buy 50 Scans - 100 Stars
         </button>
-        <button id="watch-ad-free-coin" type="button" class="arcade-watch-ad-btn w-full rounded-2xl px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] sm:text-sm">
+        <button id="watch-ad-free-coin" type="button" onclick="triggerPlatformVideoAd()" class="arcade-watch-ad-btn w-full rounded-2xl px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] sm:text-sm">
           📺 WATCH AD FOR 1 FREE COIN
         </button>
       </div>
       <p id="arcade-coin-status" class="mb-3 min-h-[1.25rem] text-center text-sm text-fuchsia-200/85"></p>
       <button id="close-arcade-coin" type="button" class="w-full rounded-2xl border border-white/15 py-3 text-sm text-white/70">
+        Close
+      </button>
+    </div>
+  </div>
+
+  <div id="receipt-save-modal" class="modal-backdrop fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-6" aria-hidden="true">
+    <div class="sheet w-full max-w-md rounded-t-3xl border border-cyan-300/50 bg-[#090716] px-5 pb-6 pt-4 sm:rounded-3xl">
+      <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-cyan-300/40 sm:hidden"></div>
+      <p class="mb-4 text-center text-sm font-semibold leading-relaxed text-cyan-100">📸 MOBILE SAVE ACTIVE: Tap and hold the receipt image below to save it directly to your device Photos folder!</p>
+      <img id="receipt-save-image" alt="Aura receipt" class="mx-auto mb-4 max-h-[60vh] w-full max-w-sm rounded-xl border border-white/15 bg-white object-contain" />
+      <button id="close-receipt-save" type="button" class="w-full rounded-2xl border border-white/15 py-3 text-sm text-white/70">
         Close
       </button>
     </div>
@@ -1249,7 +1332,9 @@
         <p>Clout Meter is a satire-first entertainment experience powered by generative AI parody cold-reading models. All scores, verdicts, roasts, rankings, and “aura” outcomes are fictional comedic outputs and must not be interpreted as factual claims, legal conclusions, psychological assessments, reputational determinations, or professional advice.</p>
         <p>By continuing to use this app, you expressly acknowledge that all generated content is produced for amusement only, may be inaccurate, exaggerated, or absurd by design, and is consumed entirely at your own discretion. You agree not to rely on the output for real-world decisions, disputes, harassment claims, or enforcement actions.</p>
         <p>You further release and hold harmless the app operator, maintainers, licensors, and distribution channels from and against any complaint, dispute, loss, or liability arising from interpretation, forwarding, reposting, or misuse of generated content.</p>
-        <p>New users receive 3 FREE lifetime scan tokens. Once consumed, you must watch a short sponsor video ad to unlock subsequent scans, or upgrade to the 1-Month All-Access Pass to clear ads entirely.</p>
+        <p>New users receive 3 FREE starter tokens upon initial machine boot. Once consumed, subsequent scan match loops must be unlocked by watching a short sponsor reward video ad console, or by inserting native Telegram Stars to purchase fresh Arcade Coin scan bundles via the console shop modal.</p>
+        <p>All internal Arcade Coins, credits, and token metrics are strictly closed, in-app virtual utility counters. They have zero relation to blockchain technology, Web3 assets, or cryptocurrency of any kind. These virtual tokens are entirely non-transferable and are locked permanently inside the app; there is absolutely no mechanism to withdraw, cash out, or convert purchased or earned tokens from the application back into external wallets, stars, or fiat currency.</p>
+        <p>All transactions made using Telegram Stars to top up arcade credits are final, immediate, and strictly non-refundable. We cannot offer Star refunds or credit reversals if a user changes their mind, makes an accidental purchase, or chooses to stop using the application. In the event of application termination, maintenance, or profile data clearing, all unused virtual counters will be permanently forfeited without liability.</p>
       </div>
     </div>
   </div>
@@ -1277,7 +1362,7 @@
         <button id="close-support" type="button" class="grid h-9 w-9 place-items-center rounded-full border border-fuchsia-300/35 bg-fuchsia-500/10 text-lg text-fuchsia-200" aria-label="Close">×</button>
       </div>
       <div class="space-y-3 text-sm leading-relaxed text-white/78">
-        <p>New users receive 3 FREE lifetime scan tokens. Once consumed, you must watch a short sponsor video ad to unlock subsequent scans, or upgrade to the 1-Month All-Access Pass to clear ads entirely.</p>
+        <p>New users receive 3 FREE starter tokens upon initial machine boot. Once consumed, subsequent scan match loops must be unlocked by watching a short sponsor reward video ad console, or by inserting native Telegram Stars to purchase fresh Arcade Coin scan bundles via the console shop modal.</p>
         <p class="font-semibold text-fuchsia-200/95">Missing Telegram Stars Recovery Steps:</p>
         <ol class="list-decimal space-y-2 pl-5">
           <li>Open Telegram and confirm the original Stars payment appears in your account transaction history.</li>
@@ -1299,6 +1384,26 @@
     (function () {
       "use strict";
 
+      var i18n = {
+        en: { startGuide: "🕹️ QUICK START GUIDE", adConsole: "📺 SPONSOR REWARD CONSOLE", scanCost: "⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)" },
+        hi: { startGuide: "🕹️ क्विक स्टार्ट गाइड", adConsole: "📺 स्पॉन्सर रिवॉर्ड कंसोल", scanCost: "⚡ AI क्लाउट स्कैन शुरू करें (लागत 1 कॉइन)" },
+        es: { startGuide: "🕹️ GUÍA DE INICIO RÁPIDO", adConsole: "📺 CONSOLA DE RECOMPENSA", scanCost: "⚡ INICIAR ESCANEO DE CLOUT IA (1 MONEDA)" },
+        ru: { startGuide: "🕹️ КРАТКОЕ РУКОВОДСТВО", adConsole: "📺 КОНСОЛЬ ВОЗНАГРАЖДЕНИЯ СВЯЗИ", scanCost: "⚡ ЗАПУСТИТЬ ИИ-СКАНИРОВАНИЕ (1 ЖЕТОН)" },
+        id: { startGuide: "🕹️ PANDUAN MULAI CEPAT", adConsole: "📺 KONSOL HADIAH SPONSOR", scanCost: "⚡ MULAI PEMINDAIAN CLOUT AI (1 KOIN)" },
+        fr: { startGuide: "🕹️ GUIDE DE DÉMARRAGE RAPIDE", adConsole: "📺 CONSOLE DE RÉCOMPENSE SPONSOR", scanCost: "⚡ LANCER LE SCAN DE CLOUT IA (1 CRÉDIT)" },
+        ar: { startGuide: "🕹️ دليل البدء السريع", adConsole: "📺 لوحة مكافآت الراعي", scanCost: "⚡ تشغيل فحص النفوذ بالذكاء الاصطناعي (التكلفة: عملة واحدة)" },
+        zh: { startGuide: "🕹️ 快速入门指南", adConsole: "📺 赞助奖励控制台", scanCost: "⚡ 启动 AI 影响力扫描 (消耗 1 个代币)" },
+        pt: { startGuide: "🕹️ GUIA DE INÍCIO RÁPIDO", adConsole: "📺 CONSOLE DE RECOMPENSA DO PATROCINADOR", scanCost: "⚡ INICIAR VALIDAÇÃO DE CLOUT IA (1 MOEDA)" },
+        tr: { startGuide: "🕹️ HIZLI BAŞLANGIÇ KILAVUZU", adConsole: "📺 SPONSOR ÖDÜL KONSOLU", scanCost: "⚡ AI CLOUT TARAMASINI BAŞLAT (1 JETON)" },
+        it: { startGuide: "🕹️ GUIDA RAPIDA", adConsole: "📺 CONSOLE PREMI SPONSOR", scanCost: "⚡ AVVIA SCANSIONE CLOUT IA (COSTO 1 MONETA)" },
+        de: { startGuide: "🕹️ SCHNELLSTARTANLEITUNG", adConsole: "📺 SPONSOR-BELOHNUNGSKONSOLE", scanCost: "⚡ KI-CLOUT-SCAN STARTEN (KOSTET 1 COIN)" },
+        uk: { startGuide: "🕹️ КОРОТКИЙ ПОСІБНИК", adConsole: "📺 КОНСОЛЬ НАГОРОД СПОНСОРА", scanCost: "⚡ ЗАПУСТИТИ ІІ-СКАНИРОВАНИЕ (1 ЖЕТОН)" },
+        uz: { startGuide: "🕹️ TEZKOR BOSHLASH YO'RIQNOMASI", adConsole: "📺 SPONSOR MUKOFOTI KONSOLI", scanCost: "⚡ AI CLOUT SCANNI BOSHLASH (QIYMATI 1 TANGA)" },
+        fa: { startGuide: "🕹️ راهنمای شروع سریع", adConsole: "📺 کنسول پاداش اسپانسر", scanCost: "⚡ شروع اسکن کلوت هوش مصنوعی (هزینه ۱ سکه)" }
+      };
+      var userLangCode = "en";
+      var currentLang = i18n.en;
+
       var I18N = {
         en: {
           insiderLabel: "Insider Gossip / Context (Optional)",
@@ -1310,7 +1415,6 @@
           pickerBusy: "Opening Telegram chat picker…",
           scratchHint: "Tap to reveal your result",
           skipScratch: "⚡ Skip Mini-Game",
-          scratchReady: "Scratch 70% to reveal the full drop.",
           receiptSaved: "Receipt image saved.",
           receiptSaveFailed: "Could not save receipt image.",
           onboardingTitle: "How Clout Meter Works",
@@ -1337,8 +1441,11 @@
           inputPlaceholder: "Enter @username or text description",
           scanning: "Aura scan",
           lockTarget: "Lock Target",
-          adsgramTitle: "AdsGram Rewarded Video",
-          adsgramHint: "📺 ADSGRAM REWARDED VIDEO: Watch a short sponsor video to score 1 FREE Arcade Coin instantly after your 3 free starter tokens are consumed!",
+          startGuide: "🕹️ QUICK START GUIDE",
+          adConsole: "📺 SPONSOR REWARD CONSOLE",
+          scanCost: "⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)",
+          adsgramTitle: "📺 SPONSOR REWARD CONSOLE",
+          adsgramHint: "Watch a short sponsor video to score 1 FREE Arcade Coin instantly after your 3 free starter tokens are consumed!",
           watchAd: "Watch Ad",
           premiumTitle: "Unlock Clout Meter Premium",
           premiumDesc: "Clear ads, gold aura, and skip the queue.",
@@ -1356,11 +1463,11 @@
           scanningLabel: "Scanning aura…",
           paymentSuccess: "Premium unlocked. Ads are cleared for this All-Access window.",
           alreadyPremium: "You already run Premium.",
-          adReady: "AdsGram listeners ready: onReward, onSkip, onError",
+          adReady: "Arcade playback stream ready.",
           adReward: "onReward: +1 Arcade Coin deposited via /api/reward-ad.",
           adError: "onError: rewarded video failed to complete",
           adWatching: "Playing rewarded video…",
-          adUnavailable: "AdsGram SDK not injected. Using local reward fallback.",
+          adUnavailable: "Sponsor video unavailable. Using local reward fallback.",
           modalRoaster: "🔥 Profile Roaster",
           modalAura: "📊 Aura Judge",
           modalRevenge: "⚔️ Revenge Leaderboard",
@@ -1371,6 +1478,7 @@
           adGate: "Free lifetime passes consumed! Initializing sponsor video ad...",
           slotPic: "Pic critique",
           slotBio: "Bio annihilation",
+          slotVibe: "VIBE MATRIX",
           slotVerdict: "Final verdict",
           slotScore: "Aura score",
           slotClout: "Clout rating",
@@ -1399,7 +1507,10 @@
           inputPlaceholder: "Introduce @usuario o una descripción",
           scanning: "Escaneo de aura",
           lockTarget: "Bloquear objetivo",
-          adsgramTitle: "Video recompensado AdsGram",
+          startGuide: "🕹️ GUÍA DE INICIO RÁPIDO",
+          adConsole: "📺 CONSOLA DE RECOMPENSA",
+          scanCost: "⚡ INICIAR ESCANEO DE CLOUT IA (1 MONEDA)",
+          adsgramTitle: "📺 CONSOLA DE RECOMPENSA",
           adsgramHint: "Mira un video de patrocinador para desbloquear un escaneo tras tus 3 tokens de por vida.",
           watchAd: "Ver anuncio",
           premiumTitle: "Desbloquea Clout Meter Premium",
@@ -1417,11 +1528,11 @@
           scanningLabel: "Escaneando aura…",
           paymentSuccess: "Premium activado. Anuncios desactivados.",
           alreadyPremium: "Ya tienes Premium.",
-          adReady: "Listeners AdsGram listos: onReward, onError",
+          adReady: "Arcade playback stream ready.",
           adReward: "onReward: escaneo desbloqueado.",
           adError: "onError: el video recompensado no se completó",
           adWatching: "Reproduciendo video recompensado…",
-          adUnavailable: "SDK de AdsGram no inyectado. Usando recarga local.",
+          adUnavailable: "Video de patrocinador no disponible. Usando recarga local.",
           modalRoaster: "🔥 Asador de perfil",
           modalAura: "📊 Juez de aura",
           modalRevenge: "⚔️ Ranking de venganza",
@@ -1432,6 +1543,7 @@
           adGate: "¡Pases de por vida agotados! Iniciando video de patrocinador...",
           slotPic: "Crítica de foto",
           slotBio: "Aniquilación de bio",
+          slotVibe: "VIBE MATRIX",
           slotVerdict: "Veredicto final",
           slotScore: "Puntuación de aura",
           slotClout: "Rating de clout",
@@ -1460,7 +1572,10 @@
           inputPlaceholder: "Введи @username или описание",
           scanning: "Скан ауры",
           lockTarget: "Захватить цель",
-          adsgramTitle: "Реклама AdsGram с наградой",
+          startGuide: "🕹️ КРАТКОЕ РУКОВОДСТВО",
+          adConsole: "📺 КОНСОЛЬ ВОЗНАГРАЖДЕНИЯ СВЯЗИ",
+          scanCost: "⚡ ЗАПУСТИТЬ ИИ-СКАНИРОВАНИЕ (1 ЖЕТОН)",
+          adsgramTitle: "📺 КОНСОЛЬ ВОЗНАГРАЖДЕНИЯ СВЯЗИ",
           adsgramHint: "Посмотри рекламу спонсора, чтобы открыть скан после 3 бесплатных токенов.",
           watchAd: "Смотреть рекламу",
           premiumTitle: "Открой Clout Meter Premium",
@@ -1478,11 +1593,11 @@
           scanningLabel: "Сканируем ауру…",
           paymentSuccess: "Premium включён. Реклама отключена.",
           alreadyPremium: "Premium уже активен.",
-          adReady: "Слушатели AdsGram готовы: onReward, onError",
+          adReady: "Arcade playback stream ready.",
           adReward: "onReward: скан разблокирован.",
           adError: "onError: видео с наградой не завершилось",
           adWatching: "Идёт rewarded-видео…",
-          adUnavailable: "SDK AdsGram не найден. Локальная награда.",
+          adUnavailable: "Спонсорское видео недоступно. Локальная награда.",
           modalRoaster: "🔥 Прожарка профиля",
           modalAura: "📊 Судья ауры",
           modalRevenge: "⚔️ Рейтинг мести",
@@ -1493,6 +1608,7 @@
           adGate: "Бесплатные пропуски израсходованы! Запускаем рекламу спонсора...",
           slotPic: "Разбор фото",
           slotBio: "Уничтожение био",
+          slotVibe: "VIBE MATRIX",
           slotVerdict: "Итоговый вердикт",
           slotScore: "Очки ауры",
           slotClout: "Рейтинг клаута",
@@ -1521,7 +1637,10 @@
           inputPlaceholder: "Masukkan @username atau deskripsi",
           scanning: "Pindai aura",
           lockTarget: "Kunci Target",
-          adsgramTitle: "Video berhadiah AdsGram",
+          startGuide: "🕹️ PANDUAN MULAI CEPAT",
+          adConsole: "📺 KONSOL HADIAH SPONSOR",
+          scanCost: "⚡ MULAI PEMINDAIAN CLOUT AI (1 KOIN)",
+          adsgramTitle: "📺 KONSOL HADIAH SPONSOR",
           adsgramHint: "Tonton video sponsor untuk membuka scan setelah 3 token seumur hidup.",
           watchAd: "Tonton Iklan",
           premiumTitle: "Buka Clout Meter Premium",
@@ -1539,11 +1658,11 @@
           scanningLabel: "Memindai aura…",
           paymentSuccess: "Premium aktif. Iklan dihapus.",
           alreadyPremium: "Kamu sudah Premium.",
-          adReady: "Listener AdsGram siap: onReward, onError",
+          adReady: "Arcade playback stream ready.",
           adReward: "onReward: scan terbuka.",
           adError: "onError: video berhadiah gagal selesai",
           adWatching: "Memutar video berhadiah…",
-          adUnavailable: "SDK AdsGram belum ada. Pakai isi ulang lokal.",
+          adUnavailable: "Video sponsor tidak tersedia. Pakai isi ulang lokal.",
           modalRoaster: "🔥 Pemanggang Profil",
           modalAura: "📊 Hakim Aura",
           modalRevenge: "⚔️ Papan Peringkat Dendam",
@@ -1554,6 +1673,7 @@
           adGate: "Tiket seumur hidup habis! Memulai video sponsor...",
           slotPic: "Kritik foto",
           slotBio: "Penghancuran bio",
+          slotVibe: "VIBE MATRIX",
           slotVerdict: "Vonis akhir",
           slotScore: "Skor aura",
           slotClout: "Rating clout",
@@ -1582,7 +1702,10 @@
           inputPlaceholder: "أدخل @username أو وصفًا نصيًا",
           scanning: "مسح الهالة",
           lockTarget: "اقفل الهدف",
-          adsgramTitle: "فيديو AdsGram بالمكافأة",
+          startGuide: "🕹️ دليل البدء السريع",
+          adConsole: "📺 لوحة مكافآت الراعي",
+          scanCost: "⚡ تشغيل فحص النفوذ بالذكاء الاصطناعي (التكلفة: عملة واحدة)",
+          adsgramTitle: "📺 لوحة مكافآت الراعي",
           adsgramHint: "شاهد فيديو الراعي لفتح فحص بعد الرموز المجانية الثلاثة مدى الحياة.",
           watchAd: "شاهد الإعلان",
           premiumTitle: "افتح Clout Meter بريميوم",
@@ -1600,11 +1723,11 @@
           scanningLabel: "جاري مسح الهالة…",
           paymentSuccess: "تم تفعيل بريميوم. الإعلانات متوقفة.",
           alreadyPremium: "أنت بالفعل مشترك بريميوم.",
-          adReady: "مستمعو AdsGram جاهزون: onReward, onError",
+          adReady: "Arcade playback stream ready.",
           adReward: "onReward: تم فتح الفحص.",
           adError: "onError: فشل إكمال فيديو المكافأة",
           adWatching: "يتم تشغيل فيديو المكافأة…",
-          adUnavailable: "SDK الخاص بـ AdsGram غير محقون. تعبئة محلية.",
+          adUnavailable: "فيديو الراعي غير متاح. تعبئة محلية.",
           modalRoaster: "🔥 محطم الملفات",
           modalAura: "📊 قاضي الهالة",
           modalRevenge: "⚔️ لوحة الانتقام",
@@ -1615,6 +1738,7 @@
           adGate: "نفدت التمريرات المجانية مدى الحياة! جاري تشغيل فيديو الراعي...",
           slotPic: "نقد الصورة",
           slotBio: "تدمير البايو",
+          slotVibe: "VIBE MATRIX",
           slotVerdict: "الحكم النهائي",
           slotScore: "درجة الهالة",
           slotClout: "تقييم الكلوت",
@@ -1639,9 +1763,9 @@
       var STORAGE_MUTE_KEY = "is_muted";
       var SALE_WINDOW_MS = 24 * 60 * 60 * 1000;
       var PREMIUM_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
-      var LOCK_COMPUTE_LABEL = "[ ⚔️ LOCK & COMPUTE ]";
-      var LOCK_TARGET_LABEL = "[ ⚔️ LOCK TARGET ]";
-      var WATCH_AD_RUN_LABEL = "[ ⚡ WATCH AD TO RUN ]";
+      var LOCK_COMPUTE_LABEL = "⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)";
+      var LOCK_TARGET_LABEL = "⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)";
+      var WATCH_AD_RUN_LABEL = "📺 WATCH AD TO UNLOCK SCAN";
       var PREMIUM_FLASH_STARS = 449;
       var PREMIUM_FULL_STARS = 550;
       var REFERRAL_LINK = "https://t.me/cloutmeter_ai_bot/CloutMeter/";
@@ -1649,11 +1773,11 @@
       var REVENGE_LIVE_LAUNCH_BASE = "https://t.me/cloutmeter_ai_bot/CloutMeter/";
       var CLOUT_METER_APP_LINK = "https://t.me/cloutmeter_ai_bot/CloutMeter/";
       var REVENGE_LOCAL_TESTING_PLAYER_HANDLE = "@YOU";
-      var ADSGRAM_BLOCK_ID = "int-clout-meter-reward";
       var STORAGE_CREDITS_KEY = "arcade_credits_balance";
       var ARCADE_STARTER_CREDITS = 3;
       var LOCAL_BROWSER_TEST_USER_KEY = "TEST_USER_99";
       var LOCAL_BROWSER_TEST_TELEGRAM_ID = "999000099";
+      var BACKEND_URL = String((window.location && window.location.origin) || "").replace(/\/+$/, "");
       var ARCADE_CREDIT_PACKS = {
         credits_pack_20: {
           sku: "credits_pack_20",
@@ -1671,14 +1795,13 @@
       var is_premium_user = false;
       var is_muted = false;
       var starInvoiceInFlight = false;
+      var arcadePurchaseInFlight = false;
       var rewardAdInFlight = false;
-      var rewardAdSimulatorTimer = null;
       var arcadeAudioCtx = null;
       var scratchCooldownUntil = 0;
       var ominousIntroPlayed = false;
       var ominousIntroGestureArmed = false;
       var premiumInvoiceStars = PREMIUM_FLASH_STARS;
-      var AdController = null;
       var state = {
         lang: "en",
         clout: 0,
@@ -1731,6 +1854,17 @@
       function getTelegramWebApp() {
         if (window.Telegram && window.Telegram.WebApp) return window.Telegram.WebApp;
         return tg || null;
+      }
+
+      function isTelegramInitDataReady(webApp) {
+        try {
+          var client = webApp || getTelegramWebApp();
+          if (!client) return false;
+          var initData = client.initData;
+          return typeof initData === "string" && initData.trim() !== "";
+        } catch (_initErr) {
+          return false;
+        }
       }
 
       function flushTelegramReadyWaiters(webApp) {
@@ -1803,7 +1937,7 @@
 
       function runNativeTelegram(handler, onMissing) {
         whenTelegramReady(function (webApp) {
-          if (!webApp) {
+          if (!webApp || !isTelegramInitDataReady(webApp)) {
             if (typeof onMissing === "function") onMissing();
             return;
           }
@@ -1812,23 +1946,73 @@
       }
 
       function t(key) {
+        if (currentLang && Object.prototype.hasOwnProperty.call(currentLang, key)) {
+          return currentLang[key];
+        }
+        if (i18n[state.lang] && Object.prototype.hasOwnProperty.call(i18n[state.lang], key)) {
+          return i18n[state.lang][key];
+        }
         var pack = I18N[state.lang] || I18N.en;
-        return pack[key] || I18N.en[key] || key;
+        if (pack && pack[key]) return pack[key];
+        return (I18N.en && I18N.en[key]) || (i18n.en && i18n.en[key]) || key;
+      }
+
+      function applyRtlLayout(langCode) {
+        var code = String(langCode || "en").toLowerCase();
+        var base = code.slice(0, 2);
+        if (code === "ar" || code === "fa" || base === "ar" || base === "fa") {
+          document.documentElement.dir = "rtl";
+          document.body.classList.add("rtl", "text-right");
+          document.body.classList.remove("text-left");
+        } else {
+          document.documentElement.dir = "ltr";
+          document.body.classList.remove("rtl", "text-right");
+        }
+      }
+
+      function applyCoreLocaleStrings() {
+        var pack = currentLang || i18n.en;
+        var guide = document.getElementById("quick-start-guide-title");
+        if (guide) guide.textContent = pack.startGuide;
+        var adConsoleEl = document.getElementById("sponsor-reward-console-title");
+        if (adConsoleEl) adConsoleEl.textContent = pack.adConsole;
+        var scanLabel = document.getElementById("lock-btn-label");
+        if (scanLabel && scanLabel.textContent !== WATCH_AD_RUN_LABEL) {
+          var mode = currentLockMode();
+          if (mode !== "ad") {
+            scanLabel.textContent = pack.scanCost;
+          }
+        }
+        LOCK_TARGET_LABEL = pack.scanCost;
+        LOCK_COMPUTE_LABEL = pack.scanCost;
       }
 
       function detectLanguage() {
         try {
-          var raw = window.Telegram &&
-            window.Telegram.WebApp &&
-            window.Telegram.WebApp.initDataUnsafe &&
-            window.Telegram.WebApp.initDataUnsafe.user &&
-            window.Telegram.WebApp.initDataUnsafe.user.language_code;
-          if (typeof raw !== "string" || !raw) return "en";
-          var code = raw.slice(0, 2).toLowerCase();
-          if (!/^[a-z]{2}$/.test(code)) return "en";
-          if (SUPPORTED_USER_LANGUAGES.indexOf(code) === -1) return "en";
-          return code;
+          userLangCode = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user && window.Telegram.WebApp.initDataUnsafe.user.language_code) ? String(window.Telegram.WebApp.initDataUnsafe.user.language_code).toLowerCase() : "en";
+          currentLang = i18n[userLangCode] || i18n[userLangCode.slice(0, 2)] || i18n.en;
+          if (userLangCode === "ar" || userLangCode === "fa" || userLangCode.slice(0, 2) === "ar" || userLangCode.slice(0, 2) === "fa") {
+            document.documentElement.dir = "rtl";
+            document.body.classList.add("rtl", "text-right");
+            document.body.classList.remove("text-left");
+          } else {
+            document.documentElement.dir = "ltr";
+            document.body.classList.remove("rtl", "text-right");
+          }
+          if (currentLang && currentLang.scanCost) {
+            LOCK_TARGET_LABEL = currentLang.scanCost;
+            LOCK_COMPUTE_LABEL = currentLang.scanCost;
+          }
+          if (i18n[userLangCode]) return userLangCode;
+          if (SUPPORTED_USER_LANGUAGES.indexOf(userLangCode.slice(0, 2)) !== -1) return userLangCode.slice(0, 2);
+          userLangCode = "en";
+          currentLang = i18n.en;
+          return "en";
         } catch (err) {
+          userLangCode = "en";
+          currentLang = i18n.en;
+          document.documentElement.dir = "ltr";
+          document.body.classList.remove("rtl", "text-right");
           return "en";
         }
       }
@@ -2163,7 +2347,7 @@
 
       function applyI18n() {
         document.documentElement.lang = state.lang;
-        document.documentElement.dir = (state.lang === "ar" || state.lang === "fa") ? "rtl" : "ltr";
+        applyRtlLayout(userLangCode || state.lang);
         document.querySelectorAll("[data-i18n]").forEach(function (el) {
           el.textContent = t(el.getAttribute("data-i18n"));
         });
@@ -2171,6 +2355,7 @@
           el.setAttribute("placeholder", t(el.getAttribute("data-i18n-placeholder")));
         });
         document.getElementById("adsgram-log").textContent = t("adReady");
+        applyCoreLocaleStrings();
         syncModalCopy();
         applyPremiumView();
       }
@@ -2271,28 +2456,27 @@
       }
 
       function applyWalletScanButton(currentTokens) {
-        var adButton = document.querySelector("button[onclick*='triggerAdsgramVideo']");
-        if (!adButton) adButton = document.getElementById("lock-btn");
+        var adButton = document.getElementById("lock-btn") || document.querySelector("button[onclick*='lockTargetOrWatchAd']") || document.querySelector("button[onclick*='triggerPlatformVideoAd']");
         if (!adButton) return;
         var tokens = Number(currentTokens);
         if (!Number.isFinite(tokens)) tokens = 0;
         adButton.classList.remove("lock-mode-free", "lock-mode-ad", "lock-mode-premium");
         if (is_premium_user === true) {
-          adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>';
+          adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue break-words leading-tight">' + LOCK_TARGET_LABEL + '</span>';
           adButton.removeAttribute("disabled");
           adButton.disabled = false;
           adButton.classList.add("lock-mode-premium");
           return;
         }
         if (tokens > 0) {
-          adButton.innerHTML = '<span class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>';
+          adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue break-words leading-tight">' + LOCK_TARGET_LABEL + '</span>';
           adButton.removeAttribute("disabled");
           adButton.disabled = false;
           adButton.classList.remove("opacity-60", "pointer-events-none");
           adButton.classList.add("lock-mode-free");
           return;
         }
-        adButton.innerHTML = '<span class="text-xs font-bold neon-text-blue">📺 WATCH AD: EARN +1 FREE ARCADETOKEN</span>';
+        adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-bold neon-text-blue break-words leading-tight">' + WATCH_AD_RUN_LABEL + '</span>';
         adButton.classList.add("lock-mode-ad");
       }
 
@@ -2315,16 +2499,11 @@
         [
           "target-input",
           "insider-gossip",
-          "choose-chat-btn",
           "revenge-self-handle",
           "revenge-opponent-required",
           "revenge-opponent-optional-1",
           "revenge-opponent-optional-2",
-          "revenge-opponent-optional-3",
-          "revenge-choose-required",
-          "revenge-choose-optional-1",
-          "revenge-choose-optional-2",
-          "revenge-choose-optional-3"
+          "revenge-opponent-optional-3"
         ].forEach(function (id) {
           var el = document.getElementById(id);
           if (!el) return;
@@ -2337,16 +2516,11 @@
         [
           "target-input",
           "insider-gossip",
-          "choose-chat-btn",
           "revenge-self-handle",
           "revenge-opponent-required",
           "revenge-opponent-optional-1",
           "revenge-opponent-optional-2",
-          "revenge-opponent-optional-3",
-          "revenge-choose-required",
-          "revenge-choose-optional-1",
-          "revenge-choose-optional-2",
-          "revenge-choose-optional-3"
+          "revenge-opponent-optional-3"
         ].forEach(function (id) {
           var el = document.getElementById(id);
           if (!el) return;
@@ -2606,208 +2780,135 @@
         });
       }
 
-      function watchAdForFreeArcadeCoin() {
-        try {
-          if (rewardAdInFlight || starInvoiceInFlight) return;
-          rewardAdInFlight = true;
-          setArcadePackButtonsBusy(true);
-          var statusEl = document.getElementById("arcade-coin-status");
-          if (statusEl) statusEl.textContent = "Loading rewarded video…";
-          haptic("medium");
-
-          if (rewardAdSimulatorTimer) {
-            clearTimeout(rewardAdSimulatorTimer);
-            rewardAdSimulatorTimer = null;
-          }
-
-          function onRewardedVideoCompleted() {
-            claimRewardedAdArcadeCredit();
-          }
-
-          function onRewardedVideoFailed(message) {
-            rewardAdInFlight = false;
-            setArcadePackButtonsBusy(false);
-            if (statusEl) {
-              statusEl.textContent = message || "Rewarded video was not completed.";
-            }
-            haptic("error");
-          }
-
-          var webApp = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-          if (webApp && typeof webApp.showRewardedVideo === "function") {
-            if (statusEl) statusEl.textContent = "Watch the full ad to earn 1 free coin…";
-            runNativeTelegram(function (readyApp) {
-              try {
-                var maybePromise = readyApp.showRewardedVideo(function (status) {
-                var normalized = String(status == null ? "" : status).toLowerCase();
-                if (
-                  normalized === "completed" ||
-                  normalized === "complete" ||
-                  normalized === "reward" ||
-                  normalized === "rewarded" ||
-                  normalized === "paid" ||
-                  status === true
-                ) {
-                  onRewardedVideoCompleted();
-                  return;
-                }
-                if (
-                  normalized === "cancelled" ||
-                  normalized === "canceled" ||
-                  normalized === "closed" ||
-                  normalized === "failed" ||
-                  status === false
-                ) {
-                  onRewardedVideoFailed("Ad closed before completion. No coin awarded.");
-                  return;
-                }
-                onRewardedVideoCompleted();
-              });
-              if (maybePromise && typeof maybePromise.then === "function") {
-                maybePromise.then(function (status) {
-                  var normalized = String(status == null ? "" : status).toLowerCase();
-                  if (
-                    normalized === "completed" ||
-                    normalized === "complete" ||
-                    normalized === "reward" ||
-                    normalized === "rewarded" ||
-                    status === true ||
-                    status == null
-                  ) {
-                    onRewardedVideoCompleted();
-                    return;
-                  }
-                  onRewardedVideoFailed("Ad was not completed.");
-                }).catch(function () {
-                  onRewardedVideoFailed("Unable to play Telegram rewarded video.");
-                });
-              }
-            } catch (invokeErr) {
-              onRewardedVideoFailed("Unable to open Telegram rewarded video.");
-            }
-            });
-            return;
-          }
-
-          // Desktop / local browser fallback: simulate a completed rewarded ad after 3 seconds.
-          if (statusEl) {
-            statusEl.textContent = "Desktop simulator: watching ad… (3s)";
-          }
-          rewardAdSimulatorTimer = setTimeout(function () {
-            rewardAdSimulatorTimer = null;
-            onRewardedVideoCompleted();
-          }, 3000);
-        } catch (err) {
-          rewardAdInFlight = false;
-          setArcadePackButtonsBusy(false);
-          var failEl = document.getElementById("arcade-coin-status");
-          if (failEl) failEl.textContent = "Unable to start rewarded video.";
+      function injectTokenRewardDirectly() {
+        claimRewardedAdArcadeCredit();
+        var shopModal = document.getElementById("shop-modal");
+        if (shopModal && shopModal.hasAttribute("open") && typeof shopModal.close === "function") {
+          shopModal.close();
         }
+        closeArcadeCoinShop();
+        if (state.pendingTarget) {
+          consumeReward(state.pendingTarget);
+          return;
+        }
+        setStatus(t("adReward"));
+      }
+
+      function watchAdForFreeArcadeCoin() {
+        triggerPlatformVideoAd();
       }
 
       function purchaseArcadeCreditPack(sku) {
+        var pack = ARCADE_CREDIT_PACKS[sku] || null;
+        if (!pack) {
+          var unknownStatus = document.getElementById("arcade-coin-status");
+          if (unknownStatus) unknownStatus.textContent = "Unknown credit pack.";
+          return;
+        }
+        processArcadePurchase(pack.credits);
+      }
+
+      async function processArcadePurchase(amount) {
+        if (arcadePurchaseInFlight === true) return;
+        var invoiceOpened = false;
+        arcadePurchaseInFlight = true;
         try {
-          var pack = ARCADE_CREDIT_PACKS[sku] || null;
-          if (!pack) {
-            var unknownStatus = document.getElementById("arcade-coin-status");
-            if (unknownStatus) unknownStatus.textContent = "Unknown credit pack.";
-            return;
+          var tokenAmount = parseInt(amount, 10);
+          if (tokenAmount !== 20 && tokenAmount !== 50) {
+            throw new Error("Invalid arcade scan bundle");
           }
-          if (starInvoiceInFlight) return;
-          starInvoiceInFlight = true;
           setArcadePackButtonsBusy(true);
           var statusEl = document.getElementById("arcade-coin-status");
           if (statusEl) statusEl.textContent = "Opening Telegram Stars checkout…";
           haptic("medium");
 
-          var initData = getInitData();
-          fetch("/api/create-star-invoice", {
+          var tgUser = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user)
+            ? window.Telegram.WebApp.initDataUnsafe.user
+            : { id: resolveCurrentUserId() };
+          var telegramId = tgUser && tgUser.id != null ? tgUser.id : resolveCurrentUserId();
+          var response = await fetch(BACKEND_URL + "/api/purchase-tokens", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Telegram-Init-Data": initData
+              "X-Telegram-Init-Data": getInitData()
             },
             body: JSON.stringify({
-              sku: pack.sku,
-              pack: pack.sku,
-              credits: pack.credits,
-              stars: pack.stars,
-              init_data: initData
+              telegram_id: telegramId,
+              token_amount: tokenAmount,
+              handle: getTelegramUsername() || "test_user_99",
+              init_data: getInitData()
             })
-          }).then(function (res) {
-            return res.text().then(function (text) {
-              var data = parseJsonObjectSafe(text) || {};
-              if (!res.ok || !data || data.ok !== true) {
-                var message = (data && data.error) ? data.error : ("HTTP " + res.status);
-                var error = new Error(message);
-                error.status = res.status;
-                throw error;
-              }
-              return data;
-            });
-          }).then(function (data) {
-            var url = String((data && (data.invoice_url || data.invoice_link || data.result)) || "").trim();
-            if (!url) {
+          });
+          var data = await response.json();
+          if (data && data.success) {
+            if (!data.invoiceLink) {
+              data.invoiceLink = data.invoice_link || data.invoice_url || "";
+            }
+            if (!data.invoiceLink) {
               throw new Error("Telegram did not return a checkout link");
             }
-            runNativeTelegram(function (webApp) {
-              if (!webApp || typeof webApp.openInvoice !== "function") {
-                starInvoiceInFlight = false;
-                setArcadePackButtonsBusy(false);
-                if (statusEl) statusEl.textContent = "Open Clout Meter inside Telegram to pay with Stars";
-                return;
-              }
-              webApp.openInvoice(url, function (status) {
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openInvoice) {
               try {
-                if (status === "paid") {
-                  var grantedCredits = Number(data.credits);
-                  if (!Number.isFinite(grantedCredits) || grantedCredits <= 0) {
-                    grantedCredits = pack.credits;
+                invoiceOpened = true;
+                window.Telegram.WebApp.openInvoice(data.invoiceLink, function (status) {
+                  try {
+                    if (status === "paid") {
+                      syncTokens();
+                      window.Telegram.WebApp.showAlert("🎰 PAYMENT SETTLED! Your transaction has been recorded. Your fresh Arcade Coins are hitting your cabinet wallet now!");
+                    } else if (status === "cancelled") {
+                      window.Telegram.WebApp.showAlert("Transaction cancelled. Insert Telegram Stars whenever you are ready to top up.");
+                    } else {
+                      window.Telegram.WebApp.showAlert("Payment transaction pending verification loop updates.");
+                    }
+                  } catch (_notifyErr) {
+                    if (statusEl) {
+                      if (status === "paid") {
+                        statusEl.textContent = "🎰 PAYMENT SETTLED! Your transaction has been recorded. Your fresh Arcade Coins are hitting your cabinet wallet now!";
+                      } else if (status === "cancelled") {
+                        statusEl.textContent = "Transaction cancelled. Insert Telegram Stars whenever you are ready to top up.";
+                      } else {
+                        statusEl.textContent = "Payment transaction pending verification loop updates.";
+                      }
+                    }
+                  } finally {
+                    arcadePurchaseInFlight = false;
+                    setArcadePackButtonsBusy(false);
                   }
-                  paintCreditsBalance((Number(state.credits_balance) || 0) + grantedCredits);
-                  if (statusEl) {
-                    statusEl.textContent = "Coins inserted! +" + String(grantedCredits) + " arcade credits loaded.";
-                  }
-                  haptic("success");
-                  syncTokens();
-                  return;
-                }
-                if (status === "cancelled") {
-                  if (statusEl) statusEl.textContent = "Stars checkout cancelled.";
-                  haptic("error");
-                  return;
-                }
-                if (statusEl) statusEl.textContent = "Stars payment was not completed.";
-                haptic("error");
-              } catch (callbackErr) {
-                if (statusEl) statusEl.textContent = "Payment overlay failed. Please retry.";
-              } finally {
-                starInvoiceInFlight = false;
-                setArcadePackButtonsBusy(false);
+                });
+                return;
+              } catch (_openErr) {
+                invoiceOpened = false;
               }
-            });
-            });
-          }).catch(function (err) {
-            starInvoiceInFlight = false;
-            setArcadePackButtonsBusy(false);
-            if (statusEl) {
-              statusEl.textContent = sanitizeArcadeShopStatusMessage(
-                err && err.message
-                  ? err.message
-                  : "Unable to start Telegram Stars checkout."
-              );
+            } else {
+              alert("Telegram Stars payment wrapper unavailable in standard desktop browser viewports.");
+              return;
             }
-            haptic("error");
-          });
+            alert("Telegram Stars payment wrapper unavailable in standard desktop browser viewports.");
+            return;
+          }
+          if (statusEl) {
+            statusEl.textContent = sanitizeArcadeShopStatusMessage(
+              (data && (data.error || data.message)) ? (data.error || data.message) : "Purchase could not be completed."
+            );
+          }
+          haptic("error");
         } catch (err) {
-          starInvoiceInFlight = false;
-          setArcadePackButtonsBusy(false);
+          console.error("Purchase processing transaction exception:", err);
           var failEl = document.getElementById("arcade-coin-status");
           if (failEl) {
-            failEl.textContent = "Unable to start Telegram Stars checkout.";
+            failEl.textContent = sanitizeArcadeShopStatusMessage(
+              err && err.message ? err.message : "Purchase processing transaction exception."
+            );
+          }
+          haptic("error");
+        } finally {
+          if (!invoiceOpened) {
+            arcadePurchaseInFlight = false;
+            setArcadePackButtonsBusy(false);
           }
         }
       }
+      window.processArcadePurchase = processArcadePurchase;
 
       function closeModal(el) {
         if (!el) return;
@@ -2932,6 +3033,7 @@
       function closeActiveGame() {
         resetMiniGameToCabinet();
       }
+      window.closeActiveGame = closeActiveGame;
 
       function openMiniGameFromCabinet(hubId) {
         state.hub = hubId;
@@ -3632,7 +3734,7 @@
           pointsCell.className = "scoreboard-points text-right font-bold text-xs md:text-sm whitespace-nowrap";
           pointsCell.textContent = String(points);
           var tagCell = document.createElement("span");
-          tagCell.className = "scoreboard-status text-right uppercase tracking-[0.06em] text-white/80 text-xs md:text-sm whitespace-nowrap";
+          tagCell.className = "scoreboard-status w-4/12 text-right text-zinc-400 uppercase font-sans text-[9px] tracking-tighter leading-tight break-words pl-1";
           tagCell.textContent = tag;
           line.appendChild(rankCell);
           line.appendChild(nameCell);
@@ -3684,6 +3786,7 @@
         result.player_username = payload.player_username || result.player_username || revengeContext.playerHandle;
         result.opponents = payload.opponents.slice();
         result.brutal_oneliner = payload.brutal_oneliner != null ? payload.brutal_oneliner : result.brutal_oneliner;
+        result.vibe_matrix = payload.vibe_matrix != null ? payload.vibe_matrix : result.vibe_matrix;
         result.bio_annihilation = payload.bio_annihilation != null ? payload.bio_annihilation : result.bio_annihilation;
         result.final_verdict = payload.final_verdict != null ? payload.final_verdict : result.final_verdict;
         payload.result = result;
@@ -3862,11 +3965,19 @@
         return gossip;
       }
 
+      function bindScanTimer(count) {
+        var element = document.getElementById("load-timer");
+        if (!element) return;
+        var seconds = Number(count);
+        if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+        element.innerHTML = `<span class="neon-text-blue animate-pulse">⚙️ COMPILING CELLS... ${seconds}s</span>`;
+      }
+
       function resetScanVisual() {
         var fill = document.getElementById("load-fill");
         fill.style.width = "0%";
         fill.classList.remove("running", "complete-glow");
-        document.getElementById("load-timer").textContent = "0s";
+        bindScanTimer(0);
       }
 
       function stopScan() {
@@ -3905,6 +4016,7 @@
         stopScan();
         resetScanVisual();
         hideResults();
+        document.getElementById("scan-loading-bar").classList.add("hidden");
         if (!keepAdBanner) hideAdGateBanner();
         unfreezeScanFields();
         unlockLockButton();
@@ -4027,7 +4139,10 @@
             body: JSON.stringify({
               init_data: initData || "",
               telegram_id: telegramId,
-              handle: getTelegramUsername() || "test_user_99"
+              handle: getTelegramUsername() || "test_user_99",
+              startapp: getTelegramStartParam(),
+              start_param: getTelegramStartParam(),
+              referral_id: getTelegramStartParam()
             })
           }).then(function (res) {
             return res.text().then(function (text) {
@@ -4046,13 +4161,36 @@
         try {
           var initData = getInitData();
           var telegramId = resolveCurrentUserId();
+          var startParam = getTelegramStartParam();
+          fetch("/api/user-state", {
+            method: "POST",
+            headers: telegramApiHeaders(),
+            body: JSON.stringify({
+              init_data: initData || "",
+              telegram_id: telegramId,
+              handle: getTelegramUsername() || "test_user_99",
+              startapp: startParam,
+              start_param: startParam,
+              referral_id: startParam
+            })
+          }).then(function (res) {
+            return res.text().then(function (text) {
+              var data = parseJsonObjectSafe(text) || {};
+              if (res.ok && data && data.ok && data.user) {
+                applyCloudLedger(data.user);
+              }
+            });
+          }).catch(function () {});
           return fetch("/api/session", {
             method: "POST",
             headers: telegramApiHeaders(),
             body: JSON.stringify({
               init_data: initData || "",
               telegram_id: telegramId,
-              handle: getTelegramUsername() || "test_user_99"
+              handle: getTelegramUsername() || "test_user_99",
+              startapp: getTelegramStartParam(),
+              start_param: getTelegramStartParam(),
+              referral_id: getTelegramStartParam()
             })
           }).then(function (res) {
             return res.text().then(function (text) {
@@ -4060,15 +4198,15 @@
               if (res.ok && data && data.ok && data.user) {
                 applyCloudLedger(data.user);
                 var currentTokens = data.user.credits_balance;
-                const adButton = document.querySelector("button[onclick*='triggerAdsgramVideo']");
+                var adButton = document.getElementById("lock-btn");
                 if (currentTokens > 0) {
                   if (adButton) {
-                    adButton.innerHTML = '<span class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>';
+                    adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue break-words leading-tight">' + LOCK_TARGET_LABEL + '</span>';
                     adButton.removeAttribute('disabled');
                   }
                 } else {
                   if (adButton) {
-                    adButton.innerHTML = '<span class="text-xs font-bold neon-text-blue">📺 WATCH AD: EARN +1 FREE ARCADETOKEN</span>';
+                    adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-bold neon-text-blue break-words leading-tight">' + WATCH_AD_RUN_LABEL + '</span>';
                   }
                 }
                 applyWalletScanButton(currentTokens);
@@ -4197,6 +4335,7 @@
               data.result.player_username = data.player_username;
               data.result.opponents = data.opponents.slice();
               if (data.brutal_oneliner != null) data.result.brutal_oneliner = data.brutal_oneliner;
+              if (data.vibe_matrix != null) data.result.vibe_matrix = data.vibe_matrix;
               if (data.bio_annihilation != null) data.result.bio_annihilation = data.bio_annihilation;
               if (data.final_verdict != null) data.result.final_verdict = data.final_verdict;
               data.module_type = "revenge_leaderboard";
@@ -4413,19 +4552,79 @@
 
       function saveReceiptImage() {
         var target = document.getElementById("aura-receipt");
-        if (!target || typeof html2canvas !== "function") {
+        if (!target) {
           setStatus(t("receiptSaveFailed"));
           return;
         }
-        html2canvas(target, { backgroundColor: "#f2f2f2", scale: 2 }).then(function (canvas) {
-          var link = document.createElement("a");
-          link.download = "clout-meter-aura-receipt.png";
-          link.href = canvas.toDataURL("image/png");
-          link.click();
+
+        function openReceiptSaveModal(imgUrl) {
+          if (!imgUrl || imgUrl === "data:," || imgUrl === "data:") {
+            setStatus(t("receiptSaveFailed"));
+            return false;
+          }
+          var img = document.getElementById("receipt-save-image");
+          var modal = document.getElementById("receipt-save-modal");
+          if (!img || !modal) {
+            setStatus(t("receiptSaveFailed"));
+            return false;
+          }
+          img.src = imgUrl;
+          openModal(modal);
           setStatus(t("receiptSaved"));
-        }).catch(function () {
-          setStatus(t("receiptSaveFailed"));
-        });
+          return true;
+        }
+
+        function presentCanvasForMobileSave(canvas, allowFallback) {
+          if (!canvas) {
+            setStatus(t("receiptSaveFailed"));
+            return;
+          }
+          try {
+            const imgUrl = canvas.toDataURL("image/png");
+            if (!openReceiptSaveModal(imgUrl) && allowFallback !== false) {
+              snapshotViaCanvasElement();
+            }
+          } catch (_drawErr) {
+            if (allowFallback !== false) snapshotViaCanvasElement();
+            else setStatus(t("receiptSaveFailed"));
+          }
+        }
+
+        function snapshotViaCanvasElement() {
+          var canvas = document.createElement("canvas");
+          canvas.width = 720;
+          canvas.height = 1040;
+          var ctx = canvas.getContext("2d");
+          if (!ctx) {
+            setStatus(t("receiptSaveFailed"));
+            return;
+          }
+          ctx.fillStyle = "#f2f2f2";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#111111";
+          ctx.font = "bold 28px sans-serif";
+          ctx.fillText("Clout Meter Aura Receipt", 36, 64);
+          var bodyText = String(target.innerText || target.textContent || "Aura receipt").replace(/\s+\n/g, "\n");
+          var lines = bodyText.split("\n");
+          ctx.font = "16px monospace";
+          var y = 110;
+          var i;
+          for (i = 0; i < lines.length && y < canvas.height - 40; i += 1) {
+            ctx.fillText(String(lines[i]).slice(0, 56), 36, y);
+            y += 22;
+          }
+          presentCanvasForMobileSave(canvas, false);
+        }
+
+        if (typeof html2canvas === "function") {
+          html2canvas(target, { backgroundColor: "#f2f2f2", scale: 2, useCORS: true }).then(function (canvas) {
+            presentCanvasForMobileSave(canvas);
+          }).catch(function () {
+            snapshotViaCanvasElement();
+          });
+          return;
+        }
+        snapshotViaCanvasElement();
       }
 
       function syncGoldPassBadges(handle) {
@@ -4645,6 +4844,63 @@
         return buildOnelinerFallback(data, data.target);
       }
 
+      function parseLabeledRoastSection(raw, sectionName) {
+        var text = String(raw == null ? "" : raw);
+        if (!text || !sectionName) return "";
+        var header = String(sectionName).replace(/\s+/g, "\\s*");
+        var htmlRe = new RegExp("<h4[^>]*>\\s*" + header + "\\s*</h4>\\s*([\\s\\S]*?)(?=<h4\\b|$)", "i");
+        var htmlHit = text.match(htmlRe);
+        if (htmlHit && htmlHit[1]) {
+          return htmlHit[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        }
+        var blockRe = new RegExp(
+          "(?:^|\\n)\\s*(?:#+\\s*)?(?:" + header + ")\\s*:?\\s*\\n+([\\s\\S]*?)(?=\\n\\s*(?:Brutal oneliner|Vibe matrix|Bio annihilation|Final verdict)\\s*:?\\s*(?:\\n|$)|$)",
+          "i"
+        );
+        var blockHit = text.match(blockRe);
+        if (blockHit && blockHit[1]) return blockHit[1].trim();
+        return "";
+      }
+
+      function wrapVibeMatrixHeaders(root) {
+        var scope = root || document.getElementById("result-profile_roaster");
+        if (!scope) return;
+        var neonClass = "mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold/80";
+        var headings = scope.querySelectorAll("h4");
+        var i;
+        for (i = 0; i < headings.length; i += 1) {
+          var heading = headings[i];
+          var label = String(heading.textContent || "").replace(/\s+/g, " ").trim();
+          if (/^vibe\s*matrix$/i.test(label) || heading.id === "vibe-matrix-title") {
+            heading.className = neonClass;
+            heading.textContent = "VIBE MATRIX";
+          }
+        }
+      }
+
+      function extractVibeMatrix(payload) {
+        var data = unwrapModulePayload(payload);
+        var candidates = [
+          coercePayloadString(data.vibe_matrix),
+          coercePayloadString(data.vibeMatrix),
+          coercePayloadString(data.vibe)
+        ];
+        var i;
+        for (i = 0; i < candidates.length; i += 1) {
+          if (!candidates[i]) continue;
+          var nested = parseLabeledRoastSection(candidates[i], "Vibe matrix")
+            || parseLabeledRoastSection(candidates[i], "VIBE MATRIX");
+          return nested || candidates[i];
+        }
+        var blob = coercePayloadString(data.roast)
+          || coercePayloadString(data.brutal_oneliner)
+          || coercePayloadString(data.bio_annihilation)
+          || "";
+        return parseLabeledRoastSection(blob, "Vibe matrix")
+          || parseLabeledRoastSection(blob, "VIBE MATRIX")
+          || "";
+      }
+
       function extractBioAnnihilation(payload) {
         var data = unwrapModulePayload(payload);
         var paragraph = coercePayloadString(data.bio_annihilation);
@@ -4842,10 +5098,21 @@
         return paragraph;
       }
 
+      function injectVibeMatrix(payload) {
+        var vibeEl = document.getElementById("slot-vibe_matrix");
+        var line = extractVibeMatrix(payload);
+        if (vibeEl) {
+          vibeEl.textContent = line;
+        }
+        wrapVibeMatrixHeaders(document.getElementById("result-profile_roaster"));
+        return line;
+      }
+
       function paintProfileRoaster(payload, options) {
         options = options || {};
         renderCloutMetrics(payload);
         injectBrutalOneliner(payload);
+        injectVibeMatrix(payload);
         injectBioAnnihilation(payload);
         var verdict = extractFinalVerdict(payload);
         var verdictEl = document.getElementById("slot-final_verdict");
@@ -4872,10 +5139,12 @@
           var roastHandle = normalizeHandle(roastPayload.target || payload.target || state.currentTarget || state.pendingTarget);
           syncGoldPassBadges(roastHandle);
           state.pendingRoastPayload = roastPayload;
-          var roastReady = afterShareFieldsReady(3, function () {
+          var roastReady = afterShareFieldsReady(4, function () {
             captureLiveShareState(moduleType);
           });
           injectBrutalOneliner(roastPayload);
+          roastReady();
+          injectVibeMatrix(roastPayload);
           roastReady();
           injectBioAnnihilation(roastPayload);
           roastReady();
@@ -5081,7 +5350,7 @@
           pointsCell.className = "scoreboard-points text-right font-bold text-xs md:text-sm whitespace-nowrap";
           pointsCell.textContent = String(points);
           var tagCell = document.createElement("span");
-          tagCell.className = "scoreboard-status text-right uppercase tracking-[0.06em] text-white/80 text-xs md:text-sm whitespace-normal break-words";
+          tagCell.className = "scoreboard-status w-4/12 text-right text-zinc-400 uppercase font-sans text-[9px] tracking-tighter leading-tight break-words pl-1";
           tagCell.textContent = tag;
           line.appendChild(rankCell);
           line.appendChild(nameCell);
@@ -5092,6 +5361,7 @@
       }
 
       function finishSuccessfulReveal(payload, result, revealType) {
+        document.getElementById("scan-loading-bar").classList.add("hidden");
         state.lastSavedResult = {
           module_type: revealType,
           result: result,
@@ -5109,11 +5379,12 @@
         persistProgress();
         hydrateSavedResults();
         setupScratchcard();
-        setStatus(t("scratchReady"));
+        setStatus("");
         haptic("success");
       }
 
       function revealResult(payload, ok) {
+        document.getElementById("scan-loading-bar").classList.add("hidden");
         unlockLockButton();
         var result = payload && payload.result;
         if (!result && payload && (payload.brutal_oneliner != null || payload.clout_metrics != null || payload.scoreboard != null)) {
@@ -5142,16 +5413,21 @@
         }
         state.scanning = true;
         state.scanStartedAt = Date.now();
+        document.getElementById("scan-loading-bar").classList.remove("hidden");
         document.getElementById("load-fill").classList.add("running");
         document.getElementById("load-fill").classList.remove("complete-glow");
         document.getElementById("load-fill").style.width = "6%";
-        document.getElementById("load-timer").textContent = "0s";
+        bindScanTimer(0);
         state.scanTimer = setInterval(function () {
           if (!state.scanning) return;
           var elapsed = Date.now() - state.scanStartedAt;
           var pct = 8 + (84 * (1 - Math.exp(-elapsed / 4200)));
           document.getElementById("load-fill").style.width = pct + "%";
-          document.getElementById("load-timer").textContent = Math.floor(elapsed / 1000) + "s";
+          var count = Math.floor(elapsed / 1000);
+          var element = document.getElementById("load-timer");
+          if (element) {
+            element.innerHTML = `<span class="neon-text-blue animate-pulse">⚙️ COMPILING CELLS... ${count}s</span>`;
+          }
         }, 80);
       }
 
@@ -5165,7 +5441,11 @@
         fill.style.width = "100%";
         fill.classList.remove("running");
         fill.classList.add("complete-glow");
-        document.getElementById("load-timer").textContent = "Done";
+        bindScanTimer(Math.max(0, Math.floor((Date.now() - (state.scanStartedAt || Date.now())) / 1000)));
+        var doneEl = document.getElementById("load-timer");
+        if (doneEl) {
+          doneEl.innerHTML = '<span class="neon-text-blue">⚙️ COMPILING CELLS... Done</span>';
+        }
         if (ok) {
           playChachingSound();
         }
@@ -5209,6 +5489,7 @@
           stopScan();
           resetScanVisual();
           if (err && err.code === "INSUFFICIENT_TOKENS") {
+            document.getElementById("scan-loading-bar").classList.add("hidden");
             setStatus("OUT OF COINS");
             openArcadeCoinShop({
               credits_balance: (err.payload && err.payload.credits_balance != null)
@@ -5236,8 +5517,13 @@
       }
 
       function lockTarget() {
+        document.getElementById("scan-loading-bar").classList.remove("hidden");
         unlockArcadeAudio();
-        if (state.scanning || state.pendingTarget) return;
+        if (state.scanning) return;
+        if (state.pendingTarget) {
+          document.getElementById("scan-loading-bar").classList.add("hidden");
+          return;
+        }
         var target = "";
         var gossip = readGossipLive();
         var actionExtra = null;
@@ -5245,6 +5531,7 @@
         if (state.hub === "revenge_leaderboard") {
           var revengeBundle = collectRevengeOpponentsPayload();
           if (!revengeBundle.mandatory) {
+            document.getElementById("scan-loading-bar").classList.add("hidden");
             setStatus(t("needOpponent"));
             haptic("error");
             return;
@@ -5272,6 +5559,7 @@
             state.pickedFirstName = "";
           }
           if (!target) {
+            document.getElementById("scan-loading-bar").classList.add("hidden");
             setStatus(t("needTarget"));
             haptic("error");
             return;
@@ -5306,6 +5594,7 @@
         freezeScanFields();
         document.getElementById("lock-btn").disabled = true;
         document.getElementById("lock-btn").classList.add("opacity-60");
+        document.getElementById("scan-loading-bar").classList.add("hidden");
         setStatus("Free lifetime passes consumed! Initializing sponsor video ad...");
         logAds(t("adWatching"));
         showRewardedAd(target);
@@ -5322,13 +5611,7 @@
         }
         logAds(t("adReward"));
         haptic("success");
-        // Secure backend deposit: POST /api/reward-ad → +1 credits_balance
-        claimRewardedAdArcadeCredit();
-        if (state.pendingTarget) {
-          consumeReward(state.pendingTarget);
-          return;
-        }
-        setStatus(t("adReward"));
+        injectTokenRewardDirectly();
       }
 
       function onAdsError(error) {
@@ -5346,74 +5629,16 @@
         if (state.pendingTarget) abortProcess();
       }
 
-      function bindAdController(controller) {
-        AdController = controller;
-        if (!AdController || typeof AdController.addEventListener !== "function") return;
-        // Adsgram only accepts verified event names: onReward, onError, onSkip.
-        // Do NOT register onClose — it is rejected by the Adsgram platform framework.
-        AdController.addEventListener("onReward", function (result) {
-          onAdsReward(result);
-        });
-        AdController.addEventListener("onError", function (error) {
-          onAdsError(error);
-        });
-        AdController.addEventListener("onSkip", function () {
-          onAdsSkip();
-        });
-      }
-
-      function initAdsGram(blockId) {
-        var resolvedBlock = blockId || ADSGRAM_BLOCK_ID;
-        ADSGRAM_BLOCK_ID = resolvedBlock;
-        try {
-          var Adsgram = window.Adsgram || window.AdsGram;
-          if (Adsgram && typeof Adsgram.init === "function") {
-            bindAdController(Adsgram.init({ blockId: resolvedBlock }));
-            logAds(t("adReady"));
-            return;
-          }
-        } catch (err) {
-          logAds(t("adError") + " — " + (err && err.message ? err.message : "init"));
-        }
-        window.__cloutAdsGram = {
-          onReward: onAdsReward,
-          onError: onAdsError,
-          onSkip: onAdsSkip
-        };
-        logAds(t("adReady"));
-      }
-
       function showRewardedAd(target) {
         if (is_premium_user) {
           startSecureFetch(target, state.gateToken, state.pendingGossip || state.insiderContext || "");
           return;
         }
-        if (AdController && typeof AdController.show === "function") {
-          Promise.resolve(AdController.show()).catch(function (err) {
-            onAdsError(err || { message: "skipped" });
-          });
-          return;
-        }
-        logAds(t("adUnavailable"));
-        abortProcess({ keepAdBanner: true });
-        setStatus("Free lifetime passes consumed! Initializing sponsor video ad...");
+        triggerPlatformVideoAd();
       }
 
       function watchAd() {
-        if (is_premium_user) return;
-        if (state.pendingTarget || state.scanning) return;
-        logAds(t("adWatching"));
-        haptic("light");
-        if (AdController && typeof AdController.show === "function") {
-          // onReward listener deposits +1 via /api/reward-ad — do not also .then(onAdsReward).
-          Promise.resolve(AdController.show()).catch(function (err) {
-            onAdsError(err || { message: "skipped" });
-          });
-          return;
-        }
-        // Telegram / desktop fallback still hits the same /api/reward-ad deposit path.
-        logAds(t("adUnavailable"));
-        watchAdForFreeArcadeCoin();
+        triggerPlatformVideoAd();
       }
 
       function pad2(value) {
@@ -5659,6 +5884,9 @@
             }
             // Keep native BackButton hidden until a mini-game is opened.
             hideTelegramBackButton();
+            state.lang = detectLanguage();
+            applyI18n();
+            applyWalletScanButton(state.credits_balance);
           } catch (err) {}
         });
       }
@@ -5755,90 +5983,74 @@
           var focusEl = document.getElementById(onUnavailableFocusId || "");
           if (focusEl && typeof focusEl.focus === "function") focusEl.focus();
         }
-        // Native chat selection must wait until Telegram.WebApp.ready() finishes
-        // stamping Request ID parameters, or requestChat throws webapp_req_id_invalid.
-        whenTelegramReady(function (readyApp) {
-          if (!readyApp || typeof readyApp.requestChat !== "function") {
-            pickerUnavailable();
+        // Native picker methods must run in the
+        // same user-gesture stack as the button tap. Deferring through ready()
+        // or rAF drops the handshake and Telegram throws WEBAPP_REQ_ID_INVALID.
+        var webApp = window.Telegram && window.Telegram.WebApp;
+        if (!webApp || !webApp.initData || typeof webApp.requestChat !== "function") {
+          pickerUnavailable();
+          return;
+        }
+        setStatus(t("pickerBusy"));
+        try {
+          var pickerParams = {
+            bot_is_member: false,
+            chat_is_channel: false,
+            chat_is_group: false,
+            request_title: true,
+            request_username: true
+          };
+          var result = webApp.requestChat(pickerParams);
+          if (result && typeof result.then === "function") {
+            result.then(function (data) {
+              onPicked(data);
+            }).catch(function () {
+              state.revengePickerTargetInputId = "";
+              setStatus(t("pickerCancelled"));
+            });
+          }
+        } catch (err) {
+          state.revengePickerTargetInputId = "";
+          pickerUnavailable();
+        }
+      }
+
+      function triggerViralInvite() {
+        var botUsername = "cloutmeter_ai_bot";
+        var myTgId = resolveCurrentUserId();
+        var referralLink = "https://t.me/" + botUsername + "?startapp=ref_" + myTgId;
+        var shareText = encodeURIComponent("💀 I just checked my digital ego on the Clout Meter AI Arcade. It completely incinerated my profile. Tap this link to get your own account roasted or see your real Aura Score instantly (plus get 3 free coins to start):");
+        function explainViralRewardLoop() {
+          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showPopup) {
+            window.Telegram.WebApp.showPopup({
+              title: "🕹️ DISPATCH COMPLETE",
+              message: "Invite link generated! +2 Free Arcade Tokens will hit your machine wallet the second your friend boots up their first scan.",
+              buttons: [{ type: "ok", text: "GOT IT" }]
+            });
             return;
           }
-          var pickerLaunched = false;
-          function launchPicker(webApp) {
-            if (pickerLaunched) return;
-            if (!webApp || typeof webApp.requestChat !== "function") {
-              pickerUnavailable();
-              return;
-            }
-            pickerLaunched = true;
-            setStatus(t("pickerBusy"));
-            try {
-              var pickerParams = {
-                bot_is_member: false,
-                chat_is_channel: false,
-                chat_is_group: false,
-                request_title: true,
-                request_username: true
-              };
-              var result = webApp.requestChat(pickerParams);
-              if (result && typeof result.then === "function") {
-                result.then(function (data) {
-                  onPicked(data);
-                }).catch(function () {
-                  state.revengePickerTargetInputId = "";
-                  setStatus(t("pickerCancelled"));
-                });
-              }
-            } catch (err) {
-              state.revengePickerTargetInputId = "";
-              pickerUnavailable();
-            }
+          alert("Invite generated! +2 tokens will hit your account as soon as your friend runs their first scan module.");
+        }
+        if (window.Telegram && window.Telegram.WebApp) {
+          // Native Telegram share sheet: forwards the personal ref deep-link.
+          window.location.href = "https://t.me/share/url?url=" + encodeURIComponent(referralLink) + "&text=" + shareText;
+          explainViralRewardLoop();
+          return;
+        }
+        try {
+          if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            navigator.clipboard.writeText(referralLink);
           }
-          try {
-            if (typeof readyApp.ready === "function") {
-              var nestedReady = readyApp.ready(function () {
-                launchPicker(getTelegramWebApp() || readyApp);
-              });
-              if (nestedReady && typeof nestedReady.then === "function") {
-                nestedReady.then(function () {
-                  launchPicker(getTelegramWebApp() || readyApp);
-                }).catch(function () {
-                  launchPicker(readyApp);
-                });
-                return;
-              }
-            }
-          } catch (_wrapReadyErr) {}
-          launchPicker(readyApp);
-        });
+        } catch (_copyErr) {}
+        explainViralRewardLoop();
       }
-
-      function chooseFromChats() {
-        state.revengePickerTargetInputId = "";
-        invokeTelegramChatPicker(function (data) {
-          applyPickedChat(data);
-        }, "target-input");
-      }
-
-      function chooseRevengeOpponentFromChats(inputId) {
-        var resolvedId = String(inputId || "").trim();
-        if (!resolvedId) return;
-        state.revengePickerTargetInputId = resolvedId;
-        invokeTelegramChatPicker(function (data) {
-          applyRevengePickedChat(data, resolvedId);
-        }, resolvedId);
-      }
+      window.triggerViralInvite = triggerViralInvite;
 
       function loadPublicConfig() {
         return fetch("/api/public-config").then(function (res) {
           return res.ok ? res.json() : null;
-        }).then(function (data) {
-          if (data && data.adsgram_global_block_id) {
-            initAdsGram(data.adsgram_global_block_id);
-            return;
-          }
-          initAdsGram(ADSGRAM_BLOCK_ID);
         }).catch(function () {
-          initAdsGram(ADSGRAM_BLOCK_ID);
+          return null;
         });
       }
 
@@ -6016,6 +6228,7 @@
           target: target,
           bio_annihilation: readSlotText("slot-bio_annihilation") || String(saved.bio_annihilation || ""),
           brutal_oneliner: readSlotText("slot-brutal_oneliner") || String(saved.brutal_oneliner || ""),
+          vibe_matrix: readSlotText("slot-vibe_matrix") || String(saved.vibe_matrix || ""),
           final_verdict: readSlotText("slot-final_verdict") || String(saved.final_verdict || ""),
           aura_score: readSlotText("slot-score") || (saved.score == null ? "" : String(saved.score)),
           clout_rating: readSlotText("slot-clout_rating") || String(saved.clout_rating || ""),
@@ -6257,15 +6470,22 @@
         });
       }
 
-      function triggerAdsgramVideo() {
+      function lockTargetOrWatchAd() {
         var currentTokens = Number(state.credits_balance) || 0;
         if (is_premium_user === true || currentTokens > 0) {
           lockTarget();
           return;
         }
-        watchAd();
+        triggerPlatformVideoAd();
       }
-      window.triggerAdsgramVideo = triggerAdsgramVideo;
+      window.lockTargetOrWatchAd = lockTargetOrWatchAd;
+
+      function triggerPlatformVideoAd() {
+        console.log("Universal Ad loop initialized.");
+        // This allows us to drop a clean custom alternative SDK frame right here next
+        injectTokenRewardDirectly();
+      }
+      window.triggerPlatformVideoAd = triggerPlatformVideoAd;
 
       document.querySelectorAll("[data-hub]").forEach(function (card) {
         card.addEventListener("click", function () {
@@ -6298,13 +6518,6 @@
       document.getElementById("insider-gossip").addEventListener("change", function () {
         state.insiderContext = String(this.value || "").trim();
       });
-      document.getElementById("choose-chat-btn").addEventListener("click", chooseFromChats);
-      document.querySelectorAll("[data-revenge-pick-for]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var inputId = btn.getAttribute("data-revenge-pick-for");
-          chooseRevengeOpponentFromChats(inputId);
-        });
-      });
       document.getElementById("target-input").addEventListener("input", function () {
         var typed = normalizeHandle(this.value);
         if (state.pickedUsername && typed !== normalizeHandle(state.pickedUsername)) {
@@ -6316,7 +6529,6 @@
         toggleMuteState();
         haptic("light");
       });
-      document.getElementById("watch-ad-btn").addEventListener("click", watchAd);
       ["pay-btn"].forEach(function (buttonId) {
         var buyBtn = document.getElementById(buttonId);
         if (!buyBtn) return;
@@ -6351,15 +6563,6 @@
       document.getElementById("arcade-coin-modal").addEventListener("click", function (event) {
         if (event.target === event.currentTarget) closeArcadeCoinShop();
       });
-      document.getElementById("buy-credits-20").addEventListener("click", function () {
-        purchaseArcadeCreditPack("credits_pack_20");
-      });
-      document.getElementById("buy-credits-50").addEventListener("click", function () {
-        purchaseArcadeCreditPack("credits_pack_50");
-      });
-      document.getElementById("watch-ad-free-coin").addEventListener("click", function () {
-        watchAdForFreeArcadeCoin();
-      });
       document.getElementById("arcade-credits-meter").addEventListener("click", function () {
         openArcadeCoinShop({
           credits_balance: state.credits_balance,
@@ -6367,6 +6570,12 @@
         });
       });
       document.getElementById("save-receipt-btn").addEventListener("click", saveReceiptImage);
+      document.getElementById("close-receipt-save").addEventListener("click", function () {
+        closeModal(document.getElementById("receipt-save-modal"));
+      });
+      document.getElementById("receipt-save-modal").addEventListener("click", function (event) {
+        if (event.target === event.currentTarget) closeModal(event.currentTarget);
+      });
       document.getElementById("open-disclaimer").addEventListener("click", function () {
         openModal(document.getElementById("disclaimer-modal"));
       });

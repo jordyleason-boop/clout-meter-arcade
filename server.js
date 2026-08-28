@@ -95,6 +95,7 @@ const premiumAccountsByUserId = new Map();
 // Arcade Credit System (Option B) — Stars packs map to credits_balance top-ups.
 const ARCADE_CREDIT_COST_PER_AI_SCAN = 1;
 const ARCADE_STARTER_CREDITS = 3;
+const VIRAL_REFERRAL_BONUS_CREDITS = 2;
 const LOCAL_TEST_USER_HANDLE = "TEST_USER_99";
 const LOCAL_TEST_USER_TELEGRAM_ID = 999000099;
 const ARCADE_CREDIT_PACKS = {
@@ -261,7 +262,11 @@ app.post("/api/process-action", async (req, res) => {
         actingTelegramId = Number(verified.user.id);
         actingHandle = sanitizeHandle(verified.user.username || "") || "";
         if (Number.isFinite(actingTelegramId) && actingTelegramId > 0) {
-          const provisionedSession = await provisionArcadeUserAccount(actingTelegramId, actingHandle);
+          const provisionedSession = await getOrCreateUser(
+            actingTelegramId,
+            actingHandle,
+            parseReferralTelegramId(parsedBody.start_param || parsedBody.startapp || "")
+          );
           if (provisionedSession && provisionedSession.ok) sessionLedger = provisionedSession.user;
         }
       }
@@ -284,7 +289,11 @@ app.post("/api/process-action", async (req, res) => {
         ) || "test_user_99";
         try {
           // Force-create the local TEST_USER_99 / browser test row with 3 starter coins.
-          const provisionedLocal = await provisionArcadeUserAccount(actingTelegramId, actingHandle);
+          const provisionedLocal = await getOrCreateUser(
+            actingTelegramId,
+            actingHandle,
+            parseReferralTelegramId(parsedBody.start_param || parsedBody.startapp || "")
+          );
           if (provisionedLocal && provisionedLocal.ok) {
             sessionLedger = provisionedLocal.user;
           }
@@ -615,6 +624,8 @@ app.post("/api/process-action", async (req, res) => {
 
     res.status(200).json({
       ok: true,
+      success: true,
+      roast: String(completion.text || "").trim(),
       module_type: parsedBody.module_type,
       target: parsedBody.module_type === "revenge_leaderboard"
         ? (parsedBody.player_username || parsedBody.target)
@@ -637,6 +648,9 @@ app.post("/api/process-action", async (req, res) => {
       scoreboard: undefined,
       brutal_oneliner: structured.data && structured.data.brutal_oneliner != null
         ? structured.data.brutal_oneliner
+        : "",
+      vibe_matrix: structured.data && structured.data.vibe_matrix != null
+        ? structured.data.vibe_matrix
         : "",
       clout_metrics: structured.data && structured.data.clout_metrics
         ? structured.data.clout_metrics
@@ -679,7 +693,8 @@ app.post("/api/session", async (req, res) => {
       );
       if (Number.isFinite(localTelegramId) && localTelegramId > 0) {
         const localHandle = sanitizeHandle(body.handle || "") || "test_user_99";
-        const localLedger = await provisionArcadeUserAccount(localTelegramId, localHandle);
+        const localReferredBy = extractReferralIdFromRequest(req);
+        const localLedger = await getOrCreateUser(localTelegramId, localHandle, localReferredBy);
         if (localLedger && localLedger.ok && localLedger.user) {
           res.status(200).json({
             ok: true,
@@ -698,9 +713,8 @@ app.post("/api/session", async (req, res) => {
       return;
     }
 
-    const ledger = await ensureUserLedger(resolved.telegramId, resolved.handle, {
-      forcePersist: true
-    });
+    const referredBy = extractReferralIdFromRequest(req, { startParam: resolved.startParam });
+    const ledger = await getOrCreateUser(resolved.telegramId, resolved.handle, referredBy);
     if (ledger.skipped) {
       res.status(200).json({
         ok: true,
@@ -731,10 +745,79 @@ app.post("/api/session", async (req, res) => {
     res.status(200).json({
       ok: true,
       created: ledger.created === true,
-      user: ledger.user
+      user: ledger.user,
+      referred_by: ledger.referred_by || 0,
+      referral_bonus_applied: ledger.referral_bonus_applied === true
     });
   } catch (_err) {
     res.status(500).json({ ok: false, error: "Session sync failed" });
+  }
+});
+
+app.post("/api/user-state", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const origin = req.get("Origin");
+    if (origin && origin !== FRONTEND_ORIGIN) {
+      res.status(403).json({ ok: false, error: "Forbidden origin" });
+      return;
+    }
+
+    const body = req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? req.body
+      : {};
+    const resolved = resolveValidatedTelegramUser(req);
+    const bodyTelegramId = normalizeArcadeTelegramId(
+      body.telegram_id != null
+        ? body.telegram_id
+        : (body.telegramId != null ? body.telegramId : "")
+    );
+
+    let telegramId = 0;
+    let handle = "";
+    if (resolved.ok && Number.isFinite(resolved.telegramId) && resolved.telegramId > 0) {
+      telegramId = Number(resolved.telegramId);
+      handle = sanitizeHandle(resolved.handle || "") || "";
+    } else if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0) {
+      telegramId = bodyTelegramId;
+      handle = sanitizeHandle(body.handle || body.username || "") || "test_user_99";
+    } else {
+      res.status(400).json({ ok: false, error: "telegram_id is required" });
+      return;
+    }
+
+    const referredBy = extractReferralIdFromRequest(req, {
+      startParam: resolved.ok ? resolved.startParam : ""
+    });
+    const ledger = await getOrCreateUser(telegramId, handle, referredBy);
+    if (ledger.skipped) {
+      res.status(200).json({
+        ok: true,
+        user: null,
+        referred_by: referredBy,
+        referral_bonus_applied: false,
+        reason: "supabase_unconfigured"
+      });
+      return;
+    }
+    if (!ledger.ok) {
+      res.status(502).json({
+        ok: false,
+        error: ledger.error || "Unable to provision user state",
+        referred_by: referredBy
+      });
+      return;
+    }
+
+    res.status(200).json({
+      ok: true,
+      created: ledger.created === true,
+      user: ledger.user,
+      referred_by: referredBy,
+      referral_bonus_applied: ledger.referral_bonus_applied === true
+    });
+  } catch (_err) {
+    res.status(500).json({ ok: false, error: "User state sync failed" });
   }
 });
 
@@ -922,6 +1005,118 @@ app.post("/api/reward-ad", async (req, res) => {
       ok: false,
       success: false,
       error: "Rewarded ad credit grant failed"
+    });
+  }
+});
+
+app.post("/api/purchase-tokens", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const clientIp = getClientIp(req);
+    if (!ipLimiter.allow(`ip-purchase-tokens:${clientIp}`)) {
+      res.status(429).json({ success: false, error: "Too many requests" });
+      return;
+    }
+
+    const origin = req.get("Origin");
+    if (origin && origin !== FRONTEND_ORIGIN) {
+      res.status(403).json({ success: false, error: "Forbidden origin" });
+      return;
+    }
+
+    const telegramBotToken = String(process.env.TELEGRAM_BOT_TOKEN || botToken || "").trim();
+    if (!telegramBotToken || !/^\d+:[A-Za-z0-9_-]+$/.test(telegramBotToken)) {
+      res.status(503).json({
+        success: false,
+        error: "Telegram Stars billing is not configured"
+      });
+      return;
+    }
+
+    const body = req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? req.body
+      : {};
+    const token_amount = parseInt(body.token_amount, 10);
+    if (token_amount !== 20 && token_amount !== 50) {
+      res.status(400).json({
+        success: false,
+        error: "token_amount must be 20 or 50"
+      });
+      return;
+    }
+
+    const star_price = token_amount === 20 ? 50 : 100;
+    const resolved = resolveValidatedTelegramUser(req);
+    const bodyTelegramId = normalizeArcadeTelegramId(
+      body.telegram_id != null
+        ? body.telegram_id
+        : (body.telegramId != null ? body.telegramId : body.user_id)
+    );
+
+    let telegram_id = 0;
+    if (resolved.ok && Number.isFinite(resolved.telegramId) && resolved.telegramId > 0) {
+      telegram_id = Number(resolved.telegramId);
+      if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0 && bodyTelegramId !== telegram_id) {
+        res.status(403).json({
+          success: false,
+          error: "telegram_id does not match the authenticated Telegram session"
+        });
+        return;
+      }
+    } else if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0) {
+      telegram_id = bodyTelegramId;
+    } else {
+      res.status(400).json({
+        success: false,
+        error: "telegram_id is required"
+      });
+      return;
+    }
+
+    if (!invoiceLimiter.allow(`invoice:${telegram_id}`) || !userLimiter.allow(`purchase-tokens:${telegram_id}`)) {
+      res.status(429).json({ success: false, error: "Too many purchase requests" });
+      return;
+    }
+
+    const invoicePayload = `user_id_${telegram_id}_tokens_${token_amount}`;
+    if (Buffer.byteLength(invoicePayload, "utf8") > 128) {
+      res.status(500).json({ success: false, error: "Invoice payload exceeded Telegram size limits" });
+      return;
+    }
+
+    const created = await telegramBotApi("createInvoiceLink", {
+      title: `${token_amount} Arcade Coins`,
+      description: `Top up your arcade machine balance with ${token_amount} premium clout scan matches!`,
+      payload: invoicePayload,
+      provider_token: "",
+      currency: "XTR",
+      prices: [{ label: `${token_amount} Scans Pack`, amount: star_price }]
+    });
+
+    if (!created.ok || typeof created.result !== "string" || !created.result.trim()) {
+      res.status(502).json({
+        success: false,
+        error: created.error || "Telegram did not return an invoice link"
+      });
+      return;
+    }
+
+    const invoiceLink = created.result.trim();
+    res.status(200).json({
+      success: true,
+      ok: true,
+      invoiceLink: invoiceLink,
+      invoice_link: invoiceLink,
+      invoice_url: invoiceLink,
+      telegram_id: telegram_id,
+      token_amount: token_amount,
+      stars: star_price,
+      currency: "XTR"
+    });
+  } catch (_err) {
+    res.status(500).json({
+      success: false,
+      error: "Unable to create Telegram Stars invoice"
     });
   }
 });
@@ -1290,7 +1485,8 @@ function resolveValidatedTelegramUser(req) {
       ok: true,
       user: verified.user,
       telegramId,
-      handle
+      handle,
+      startParam: verified.startParam || null
     };
   } catch (_err) {
     return { ok: false };
@@ -1345,12 +1541,97 @@ function normalizeArcadeTelegramId(rawId) {
   return 0;
 }
 
+function parseReferralTelegramId(rawValue) {
+  const text = String(rawValue == null ? "" : rawValue).trim();
+  if (!text) return 0;
+  const match = text.match(/ref_([0-9]+)/i);
+  if (!match || !match[1]) return 0;
+  const parsed = Number(match[1]);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.floor(parsed);
+}
+
+function extractReferralIdFromRequest(req, extras) {
+  const body = req && req.body && typeof req.body === "object" && !Array.isArray(req.body)
+    ? req.body
+    : {};
+  const extraStart = extras && extras.startParam != null ? extras.startParam : "";
+  const candidates = [
+    body.start_param,
+    body.startapp,
+    body.startParam,
+    body.referral_id,
+    body.referredBy,
+    extraStart
+  ];
+  let i;
+  for (i = 0; i < candidates.length; i += 1) {
+    const parsed = parseReferralTelegramId(candidates[i]);
+    if (parsed > 0) return parsed;
+  }
+  return 0;
+}
+
+async function creditReferrerArcadeBonus(referredByTelegramId, newUserTelegramId) {
+  if (!supabase) {
+    return { ok: false, skipped: true, error: "Supabase is not configured" };
+  }
+  const referrerId = normalizeArcadeTelegramId(referredByTelegramId);
+  const newUserId = normalizeArcadeTelegramId(newUserTelegramId);
+  if (!Number.isFinite(referrerId) || referrerId <= 0) {
+    return { ok: false, skipped: true, error: "Invalid referredBy" };
+  }
+  if (!Number.isFinite(newUserId) || newUserId <= 0) {
+    return { ok: false, skipped: true, error: "Invalid new user telegram_id" };
+  }
+  if (referrerId === newUserId) {
+    return { ok: false, skipped: true, error: "self_referral" };
+  }
+  try {
+    const { data: referrer, error: readError } = await supabase
+      .from("users")
+      .select("telegram_id, username, credits_balance")
+      .eq("telegram_id", referrerId)
+      .maybeSingle();
+    if (readError) {
+      return { ok: false, error: readError.message || "referrer read failed" };
+    }
+    if (!referrer) {
+      return { ok: false, skipped: true, error: "referrer_not_found" };
+    }
+    const currentBalance = Number(referrer.credits_balance);
+    const liveBalance = Number.isFinite(currentBalance) ? Math.floor(currentBalance) : 0;
+    const nextBalance = liveBalance + VIRAL_REFERRAL_BONUS_CREDITS;
+    const { data: patched, error: patchError } = await supabase
+      .from("users")
+      .update({ credits_balance: nextBalance })
+      .eq("telegram_id", referrerId)
+      .select("telegram_id, username, credits_balance")
+      .maybeSingle();
+    if (patchError) {
+      return { ok: false, error: patchError.message || "referrer credits_balance patch failed" };
+    }
+    const serialized = serializeUserLedger(patched || Object.assign({}, referrer, {
+      credits_balance: nextBalance
+    }));
+    return {
+      ok: true,
+      referred_by: referrerId,
+      bonus_credits: VIRAL_REFERRAL_BONUS_CREDITS,
+      credits_balance: nextBalance,
+      user: serialized
+    };
+  } catch (_err) {
+    return { ok: false, error: "referrer bonus patch failed" };
+  }
+}
+
 /**
  * Lookup the users ledger row. When no row exists (including local TEST_USER_99),
  * explicitly insert a new account with ARCADE_STARTER_CREDITS (3) starter coins.
  * Never treat a missing row as a 0-credit balance.
  */
-async function provisionArcadeUserAccount(telegramId, handle) {
+async function provisionArcadeUserAccount(telegramId, handle, referredBy) {
   if (!supabase) {
     return {
       ok: false,
@@ -1425,11 +1706,18 @@ async function provisionArcadeUserAccount(telegramId, handle) {
         return { ok: false, credits_balance: 0, error: "users insert returned an empty row" };
       }
       serializedCreated.credits_balance = ARCADE_STARTER_CREDITS;
+      const referrerId = normalizeArcadeTelegramId(referredBy);
+      let referralBonus = { ok: false, skipped: true };
+      if (Number.isFinite(referrerId) && referrerId > 0 && referrerId !== numericId) {
+        referralBonus = await creditReferrerArcadeBonus(referrerId, numericId);
+      }
       return {
         ok: true,
         created: true,
         credits_balance: ARCADE_STARTER_CREDITS,
-        user: serializedCreated
+        user: serializedCreated,
+        referred_by: Number.isFinite(referrerId) && referrerId > 0 && referrerId !== numericId ? referrerId : 0,
+        referral_bonus_applied: Boolean(referralBonus && referralBonus.ok === true)
       };
     }
 
@@ -1493,6 +1781,10 @@ async function provisionArcadeUserAccount(telegramId, handle) {
       error: "arcade user provision failed"
     };
   }
+}
+
+async function getOrCreateUser(tgId, username, referredBy) {
+  return provisionArcadeUserAccount(tgId, username, referredBy);
 }
 
 async function resolveValidatedPremiumStatus(telegramId) {
@@ -2971,7 +3263,33 @@ async function telegramBotApi(method, payload) {
   }
 }
 
+function parseUserRefInvoicePayload(raw) {
+  try {
+    const text = String(raw == null ? "" : raw).trim();
+    const match = text.match(/^user_id_(\d+)_tokens_(\d+)$/)
+      || text.match(/^user_ref_(\d+)_amount_(\d+)$/);
+    if (!match) return null;
+    const userId = match[1];
+    const token_amount = parseInt(match[2], 10);
+    if (!userId || (token_amount !== 20 && token_amount !== 50)) return null;
+    const stars = token_amount === 20 ? 50 : 100;
+    const sku = token_amount === 20 ? "credits_pack_20" : "credits_pack_50";
+    return {
+      userId: userId,
+      sku: sku,
+      credits: token_amount,
+      stars: stars,
+      token_amount: token_amount,
+      grants_premium: false
+    };
+  } catch (_err) {
+    return null;
+  }
+}
+
 function parseStarInvoicePayload(raw) {
+  const userRef = parseUserRefInvoicePayload(raw);
+  if (userRef) return userRef;
   try {
     if (typeof raw !== "string" || !raw.trim()) return null;
     const parsed = JSON.parse(raw);
@@ -2988,6 +3306,9 @@ function parseStarInvoicePayload(raw) {
         ? Math.floor(creditsFromPayload)
         : pack.credits,
       stars: pack.stars,
+      token_amount: Number.isFinite(creditsFromPayload) && creditsFromPayload > 0
+        ? Math.floor(creditsFromPayload)
+        : pack.credits,
       grants_premium: pack.grants_premium === true
     };
   } catch (_err) {
@@ -3028,6 +3349,75 @@ function webhookSecretIsValid(req) {
     return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
   } catch (_err) {
     return false;
+  }
+}
+
+async function creditPurchasedArcadeTokens(telegramId, tokenAmount, handle) {
+  if (!supabase) {
+    return { ok: false, skipped: true, error: "Supabase is not configured" };
+  }
+  try {
+    const numericId = normalizeArcadeTelegramId(telegramId);
+    const token_amount = parseInt(tokenAmount, 10);
+    if (!Number.isFinite(numericId) || numericId <= 0) {
+      return { ok: false, error: "Invalid telegram_id" };
+    }
+    if (token_amount !== 20 && token_amount !== 50) {
+      return { ok: false, error: "token_amount must be 20 or 50" };
+    }
+
+    const provisioned = await getOrCreateUser(numericId, handle || "");
+    if (!provisioned.ok || !provisioned.user) {
+      return {
+        ok: false,
+        error: provisioned.error || "Unable to provision users row after Stars payment"
+      };
+    }
+
+    const { data: existingUser, error: readError } = await supabase
+      .from("users")
+      .select("telegram_id, username, credits_balance")
+      .eq("telegram_id", numericId)
+      .maybeSingle();
+
+    if (readError) {
+      return { ok: false, error: readError.message || "Unable to read credits_balance" };
+    }
+    if (!existingUser) {
+      return { ok: false, error: "User ledger row missing after getOrCreateUser" };
+    }
+
+    const newBalance = Number(existingUser.credits_balance) + parseInt(token_amount, 10);
+    if (!Number.isFinite(Number(newBalance)) || Number(newBalance) < 0) {
+      return { ok: false, error: "Calculated credits_balance is invalid" };
+    }
+
+    const { data: patchedRow, error: patchError } = await supabase
+      .from("users")
+      .update({ credits_balance: newBalance })
+      .eq("telegram_id", numericId)
+      .select("telegram_id, username, credits_balance")
+      .maybeSingle();
+
+    if (patchError) {
+      return { ok: false, error: patchError.message || "Unable to patch credits_balance" };
+    }
+
+    const serialized = serializeUserLedger(patchedRow || Object.assign({}, existingUser, {
+      credits_balance: newBalance
+    }));
+    if (serialized) {
+      serialized.credits_balance = newBalance;
+    }
+    return {
+      ok: true,
+      credits_added: token_amount,
+      credits_balance: newBalance,
+      new_balance: newBalance,
+      user: serialized
+    };
+  } catch (_err) {
+    return { ok: false, error: "Stars payment credit grant failed" };
   }
 }
 
@@ -3098,9 +3488,11 @@ async function captureSuccessfulPayment(message) {
     }
 
     const handle = sanitizeHandle((message.from && message.from.username) || "") || "";
-    const creditsToAdd = fromPayload && Number.isFinite(Number(fromPayload.credits))
-      ? Math.floor(Number(fromPayload.credits))
-      : pack.credits;
+    const tokenAmount = fromPayload && fromPayload.token_amount != null
+      ? parseInt(fromPayload.token_amount, 10)
+      : (fromPayload && Number.isFinite(Number(fromPayload.credits))
+        ? Math.floor(Number(fromPayload.credits))
+        : pack.credits);
 
     let record = null;
     if (pack.grants_premium === true || pack.sku === PREMIUM_SKU) {
@@ -3119,12 +3511,14 @@ async function captureSuccessfulPayment(message) {
       }
     }
 
-    const credited = await addArcadeCredits(userId, handle, creditsToAdd);
+    const credited = (tokenAmount === 20 || tokenAmount === 50)
+      ? await creditPurchasedArcadeTokens(userId, tokenAmount, handle)
+      : await addArcadeCredits(userId, handle, tokenAmount);
     if (credited.skipped) {
       return {
         ok: true,
         record: record,
-        credits_added: creditsToAdd,
+        credits_added: tokenAmount,
         credits_balance: null,
         dbFailed: false
       };
@@ -3511,9 +3905,29 @@ function compileUserPrompt(moduleType, target, language, gossip, targetUsername,
       ? `\nREQUIRED INSIDER GOSSIP (cite concrete details from this in every field):\n${gossip}\n`
       : "\nInsider gossip: none\n";
     const profileBlock = `\nUsername: ${targetUsername ? `@${targetUsername}` : target}\nFirst name: ${targetFirstName || "unknown"}`;
-    const localeLine = `\nuser_language=${safeCode}\nCRITICAL LOCALIZATION REQUIREMENT: Write bio_annihilation, brutal_oneliner, and final_verdict fluently and completely in ${safeName}. Keep JSON keys clout_metrics, charisma_level, cringe_factor, and threat_multiplier in English characters.`;
+    const localeLine = `\nuser_language=${safeCode}\nCRITICAL LOCALIZATION REQUIREMENT: Write bio_annihilation, brutal_oneliner, vibe_matrix, and final_verdict fluently and completely in ${safeName}. Keep JSON keys clout_metrics, charisma_level, cringe_factor, and threat_multiplier in English characters.`;
     if (moduleType === "profile_roaster") {
-      return `${gossipBlock}module_type=${moduleType}${localeLine}\nLock this Telegram handle and return clout_metrics, bio_annihilation, brutal_oneliner, and final_verdict.\nTarget: ${target}${profileBlock}\nclout_metrics must be an object with charisma_level, cringe_factor, and threat_multiplier as numbers from 0 to 10.\nBuild every field around the text handle and the insider gossip above. Mention the gossip facts explicitly.`;
+      const username = String(targetUsername || target || "unknown").replace(/^@+/, "").trim() || "unknown";
+      const prompt = `Write a savage, hilarious cyber arcade comedy roast for the Telegram user "@${username}". 
+  Your output MUST follow this exact 4-part layout structure with zero deviations:
+  
+  Brutal oneliner
+  [Insert a single-sentence punchy roast here]
+  
+  Vibe matrix
+  [Insert a short, funny 1-sentence breakdown of their core digital frequency or energy here]
+  
+  Bio annihilation
+  [Insert a 2-3 sentence roast about their lack of bio or digital presence here]
+  
+  Final verdict
+  [Insert a sharp, single-sentence final closing judgment sentence here]
+  
+  CRITICAL RULES:
+  - Maintain absolute perfect English grammar layout.
+  - End your response IMMEDIATELY after your final punctuation mark in the Final verdict block.
+  - Absolutely do not repeat words, trailing sentence loops, or duplicate phrases at the very end of your response text.`;
+      return `${gossipBlock}module_type=${moduleType}${localeLine}\n${prompt}\nMap Brutal oneliner, Vibe matrix, Bio annihilation, and Final verdict into JSON keys brutal_oneliner, vibe_matrix, bio_annihilation, and final_verdict. Also return clout_metrics with charisma_level, cringe_factor, and threat_multiplier as numbers from 0 to 10.\nTarget: ${target}${profileBlock}\nBuild every field around the text handle and the insider gossip above. Mention the gossip facts explicitly.`;
     }
     if (moduleType === "aura_judge") {
       return `${gossipBlock}module_type=${moduleType}${localeLine}\nCalculate the official aura receipt and return score, clout_rating, perks_unlocked, and penalties_applied.\nTarget: ${target}${profileBlock}\nLet the insider gossip above drive the score, perks, and penalties. Mention those facts explicitly. Write clout_rating, perks_unlocked, and penalties_applied in ${safeName}. Keep JSON keys in English.`;
@@ -3686,6 +4100,9 @@ function parseAndValidateModuleJson(text, moduleConfig, target, targetId) {
   if (Object.prototype.hasOwnProperty.call(aliased, "scoreboard") && aliased.scoreboard != null) {
     data.scoreboard = aliased.scoreboard;
   }
+  if (Object.prototype.hasOwnProperty.call(aliased, "vibe_matrix") && aliased.vibe_matrix != null) {
+    data.vibe_matrix = aliased.vibe_matrix;
+  }
 
   if (Object.prototype.hasOwnProperty.call(data, "clout_metrics") || moduleConfig.module_id === "profile_roaster" || moduleConfig.module_id === "revenge_leaderboard") {
     const metrics = normalizeCloutMetrics(data.clout_metrics);
@@ -3716,13 +4133,16 @@ function parseAndValidateModuleJson(text, moduleConfig, target, targetId) {
   }
 
   if (typeof data.brutal_oneliner === "string") {
-    data.brutal_oneliner = data.brutal_oneliner.trim();
+    data.brutal_oneliner = cleanRepeatingAiTail(data.brutal_oneliner);
+  }
+  if (typeof data.vibe_matrix === "string") {
+    data.vibe_matrix = cleanRepeatingAiTail(data.vibe_matrix);
   }
   if (typeof data.bio_annihilation === "string") {
-    data.bio_annihilation = data.bio_annihilation.trim();
+    data.bio_annihilation = cleanRepeatingAiTail(data.bio_annihilation);
   }
   if (typeof data.final_verdict === "string") {
-    data.final_verdict = data.final_verdict.trim();
+    data.final_verdict = cleanRepeatingAiTail(data.final_verdict);
   }
 
   if (moduleConfig.module_id === "aura_judge") {
@@ -3782,6 +4202,13 @@ function applyModuleFieldAliases(parsed) {
       "brutal_one_liner",
       "one_liner",
       "oneliner"
+    ], 0);
+  }
+  if (out.vibe_matrix == null) {
+    out.vibe_matrix = findFieldDeep(source, [
+      "vibe_matrix",
+      "vibeMatrix",
+      "vibe"
     ], 0);
   }
   if (out.bio_annihilation == null) {
@@ -4042,6 +4469,38 @@ function extractJsonObject(text) {
   return null;
 }
 
+function cleanRepeatingAiTail(raw) {
+  let finalRoast = raw == null ? "" : String(raw);
+  finalRoast = finalRoast.trim();
+
+  // Advanced tail repetition clean check
+  let previous = "";
+  let hops = 0;
+  while (hops < 12 && finalRoast !== previous) {
+    previous = finalRoast;
+    if (finalRoast.length > 50) {
+      const halfLen = Math.floor(finalRoast.length / 2);
+      const endChunk = finalRoast.substring(halfLen);
+      // Scan if the last sentence fragment structurally duplicates a preceding string block
+      const sampleSize = 20;
+      if (endChunk.length > sampleSize) {
+        const tailSample = finalRoast.substring(finalRoast.length - sampleSize);
+        const uniqueFirstHalf = finalRoast.substring(0, finalRoast.length - sampleSize);
+        if (uniqueFirstHalf.includes(tailSample)) {
+          // Detects the loop break and cleans the string cleanly back to the last valid punctuation mark
+          const lastPeriod = uniqueFirstHalf.lastIndexOf(".");
+          if (lastPeriod !== -1) {
+            finalRoast = uniqueFirstHalf.substring(0, lastPeriod + 1).trim();
+          }
+        }
+      }
+    }
+    hops += 1;
+  }
+
+  return finalRoast.trim();
+}
+
 async function requestDeepSeek({ model, systemPrompt, userPrompt, gossip, response_format }) {
   if (!OPENROUTER_API_KEY) {
     return { ok: false, error: "OPENROUTER_API_KEY is missing" };
@@ -4091,26 +4550,29 @@ async function requestDeepSeek({ model, systemPrompt, userPrompt, gossip, respon
       return { ok: false, error: `DeepSeek responded with HTTP ${response.status}` };
     }
 
-    const body = await response.json();
-    const message = body && body.choices && body.choices[0] && body.choices[0].message
-      ? body.choices[0].message
-      : null;
-    let text = "";
-    if (message && typeof message.content === "string") {
-      text = message.content.trim();
-    } else if (message && message.content && typeof message.content === "object") {
+    const aiData = await response.json();
+    let finalRoast = (aiData && aiData.choices && aiData.choices[0] && aiData.choices[0].message && aiData.choices[0].message.content) || "";
+    if (finalRoast && typeof finalRoast === "object") {
       try {
-        text = JSON.stringify(message.content);
+        finalRoast = JSON.stringify(finalRoast);
       } catch (_err) {
-        text = "";
+        finalRoast = "";
       }
     }
+    finalRoast = String(finalRoast || "").trim();
 
-    if (!text) {
+    // Advanced tail repetition clean check
+    const originalRoast = finalRoast;
+    finalRoast = cleanRepeatingAiTail(finalRoast);
+    if (originalRoast && extractJsonObject(originalRoast) && !extractJsonObject(finalRoast)) {
+      finalRoast = originalRoast;
+    }
+
+    if (!finalRoast) {
       return { ok: false, error: "DeepSeek returned an empty response" };
     }
 
-    return { ok: true, text: stripMarkdownFences(text) };
+    return { ok: true, text: stripMarkdownFences(finalRoast.trim()) };
   } catch (err) {
     return { ok: false, error: err && err.message ? err.message : "DeepSeek request failed" };
   } finally {

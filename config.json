@@ -4,7 +4,7 @@
     "engine_version": "1.0.0",
     "active_ai_provider": "openrouter",
     "active_model_string": "deepseek/deepseek-v4-flash",
-    "adsgram_global_block_id": "42879",
+    "adsgram_global_block_id": "44836",
     "supported_language_codes": ["en", "hi", "es", "ru", "id", "fr", "ar", "zh", "pt", "tr", "it", "de", "uk", "uz", "fa"],
     "default_language_code": "en",
     "response_format": "json_object",
@@ -58,6 +58,9 @@
             "type": "string"
           },
           "brutal_oneliner": {
+            "type": "string"
+          },
+          "vibe_matrix": {
             "type": "string"
           },
           "final_verdict": {
