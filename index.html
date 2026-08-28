@@ -2849,10 +2849,17 @@
               statusEl.textContent = "🕹️ TRANSACTION SUCCESSFUL! +" + String(tokenAmount) + " Scans credited.";
             }
             await syncTokens();
-            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showAlert) {
-              window.Telegram.WebApp.showAlert("🕹️ TRANSACTION SUCCESSFUL! +" + tokenAmount + " Scans have been credited to your arcade cabinet balance.");
-            } else {
-              alert("+" + tokenAmount + " Scans credited successfully!");
+            try {
+              var webApp = window.Telegram && window.Telegram.WebApp;
+              if (webApp && typeof webApp.showAlert === "function" && webApp.initData) {
+                webApp.showAlert("🕹️ TRANSACTION SUCCESSFUL! +" + tokenAmount + " Scans have been credited to your arcade cabinet balance.");
+              } else {
+                alert("+" + tokenAmount + " Scans credited successfully!");
+              }
+            } catch (_alertErr) {
+              try {
+                alert("+" + tokenAmount + " Scans credited successfully!");
+              } catch (_fallbackErr) {}
             }
             return;
           }
