@@ -624,6 +624,8 @@ app.post("/api/process-action", async (req, res) => {
 
     res.status(200).json({
       ok: true,
+      success: true,
+      roast: String(completion.text || "").trim(),
       module_type: parsedBody.module_type,
       target: parsedBody.module_type === "revenge_leaderboard"
         ? (parsedBody.player_username || parsedBody.target)
@@ -3688,7 +3690,25 @@ function compileUserPrompt(moduleType, target, language, gossip, targetUsername,
     const profileBlock = `\nUsername: ${targetUsername ? `@${targetUsername}` : target}\nFirst name: ${targetFirstName || "unknown"}`;
     const localeLine = `\nuser_language=${safeCode}\nCRITICAL LOCALIZATION REQUIREMENT: Write bio_annihilation, brutal_oneliner, and final_verdict fluently and completely in ${safeName}. Keep JSON keys clout_metrics, charisma_level, cringe_factor, and threat_multiplier in English characters.`;
     if (moduleType === "profile_roaster") {
-      return `${gossipBlock}module_type=${moduleType}${localeLine}\nLock this Telegram handle and return clout_metrics, bio_annihilation, brutal_oneliner, and final_verdict.\nTarget: ${target}${profileBlock}\nclout_metrics must be an object with charisma_level, cringe_factor, and threat_multiplier as numbers from 0 to 10.\nBuild every field around the text handle and the insider gossip above. Mention the gossip facts explicitly.`;
+      const username = String(targetUsername || target || "unknown").replace(/^@+/, "").trim() || "unknown";
+      const prompt = `Write a savage, hilarious cyber arcade comedy roast for the Telegram user "@${username}". 
+  Your output MUST follow this exact 3-part layout structure with zero deviations:
+  
+  Brutal oneliner
+  [Insert a single-sentence punchy roast here]
+  
+  Bio annihilation
+  [Insert a 2-3 sentence roast about their lack of bio or digital presence here]
+  
+  Final verdict
+  [Insert a sharp, single-sentence final closing judgment sentence here]
+  
+  CRITICAL RULES:
+  - Maintain absolute perfect English grammar and vocabulary layout.
+  - End your response IMMEDIATELY after your final sentence in the Final verdict block. 
+  - Strictly DO NOT repeat words, loops, phrases, or fragment sentences at the end of the text.
+  - Stop generating text the moment your thought loop is complete.`;
+      return `${gossipBlock}module_type=${moduleType}${localeLine}\n${prompt}\nMap Brutal oneliner, Bio annihilation, and Final verdict into JSON keys brutal_oneliner, bio_annihilation, and final_verdict. Also return clout_metrics with charisma_level, cringe_factor, and threat_multiplier as numbers from 0 to 10.\nTarget: ${target}${profileBlock}\nBuild every field around the text handle and the insider gossip above. Mention the gossip facts explicitly.`;
     }
     if (moduleType === "aura_judge") {
       return `${gossipBlock}module_type=${moduleType}${localeLine}\nCalculate the official aura receipt and return score, clout_rating, perks_unlocked, and penalties_applied.\nTarget: ${target}${profileBlock}\nLet the insider gossip above drive the score, perks, and penalties. Mention those facts explicitly. Write clout_rating, perks_unlocked, and penalties_applied in ${safeName}. Keep JSON keys in English.`;
@@ -3891,13 +3911,13 @@ function parseAndValidateModuleJson(text, moduleConfig, target, targetId) {
   }
 
   if (typeof data.brutal_oneliner === "string") {
-    data.brutal_oneliner = data.brutal_oneliner.trim();
+    data.brutal_oneliner = cleanRepeatingAiTail(data.brutal_oneliner);
   }
   if (typeof data.bio_annihilation === "string") {
-    data.bio_annihilation = data.bio_annihilation.trim();
+    data.bio_annihilation = cleanRepeatingAiTail(data.bio_annihilation);
   }
   if (typeof data.final_verdict === "string") {
-    data.final_verdict = data.final_verdict.trim();
+    data.final_verdict = cleanRepeatingAiTail(data.final_verdict);
   }
 
   if (moduleConfig.module_id === "aura_judge") {
@@ -4217,6 +4237,38 @@ function extractJsonObject(text) {
   return null;
 }
 
+function cleanRepeatingAiTail(raw) {
+  let finalRoast = raw == null ? "" : String(raw);
+  finalRoast = finalRoast.trim();
+
+  // Advanced tail repetition clean check
+  let previous = "";
+  let hops = 0;
+  while (hops < 12 && finalRoast !== previous) {
+    previous = finalRoast;
+    if (finalRoast.length > 50) {
+      const halfLen = Math.floor(finalRoast.length / 2);
+      const endChunk = finalRoast.substring(halfLen);
+      // Scan if the last sentence fragment structurally duplicates a preceding string block
+      const sampleSize = 20;
+      if (endChunk.length > sampleSize) {
+        const tailSample = finalRoast.substring(finalRoast.length - sampleSize);
+        const uniqueFirstHalf = finalRoast.substring(0, finalRoast.length - sampleSize);
+        if (uniqueFirstHalf.includes(tailSample)) {
+          // Detects the loop break and cleans the string cleanly back to the last valid punctuation mark
+          const lastPeriod = uniqueFirstHalf.lastIndexOf(".");
+          if (lastPeriod !== -1) {
+            finalRoast = uniqueFirstHalf.substring(0, lastPeriod + 1).trim();
+          }
+        }
+      }
+    }
+    hops += 1;
+  }
+
+  return finalRoast.trim();
+}
+
 async function requestDeepSeek({ model, systemPrompt, userPrompt, gossip, response_format }) {
   if (!OPENROUTER_API_KEY) {
     return { ok: false, error: "OPENROUTER_API_KEY is missing" };
@@ -4266,26 +4318,29 @@ async function requestDeepSeek({ model, systemPrompt, userPrompt, gossip, respon
       return { ok: false, error: `DeepSeek responded with HTTP ${response.status}` };
     }
 
-    const body = await response.json();
-    const message = body && body.choices && body.choices[0] && body.choices[0].message
-      ? body.choices[0].message
-      : null;
-    let text = "";
-    if (message && typeof message.content === "string") {
-      text = message.content.trim();
-    } else if (message && message.content && typeof message.content === "object") {
+    const aiData = await response.json();
+    let finalRoast = (aiData && aiData.choices && aiData.choices[0] && aiData.choices[0].message && aiData.choices[0].message.content) || "";
+    if (finalRoast && typeof finalRoast === "object") {
       try {
-        text = JSON.stringify(message.content);
+        finalRoast = JSON.stringify(finalRoast);
       } catch (_err) {
-        text = "";
+        finalRoast = "";
       }
     }
+    finalRoast = String(finalRoast || "").trim();
 
-    if (!text) {
+    // Advanced tail repetition clean check
+    const originalRoast = finalRoast;
+    finalRoast = cleanRepeatingAiTail(finalRoast);
+    if (originalRoast && extractJsonObject(originalRoast) && !extractJsonObject(finalRoast)) {
+      finalRoast = originalRoast;
+    }
+
+    if (!finalRoast) {
       return { ok: false, error: "DeepSeek returned an empty response" };
     }
 
-    return { ok: true, text: stripMarkdownFences(text) };
+    return { ok: true, text: stripMarkdownFences(finalRoast.trim()) };
   } catch (err) {
     return { ok: false, error: err && err.message ? err.message : "DeepSeek request failed" };
   } finally {
