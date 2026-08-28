@@ -763,8 +763,7 @@
       text-align: right;
     }
 
-    .scoreboard-handle,
-    .scoreboard-status {
+    .scoreboard-handle {
       min-width: 0;
       max-width: 100%;
       width: auto;
@@ -778,7 +777,13 @@
     }
 
     .scoreboard-status {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       text-align: right;
+      line-height: 1.25;
     }
 
     .revenge-self-lock {
@@ -976,7 +981,7 @@
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-rose-500/20 blur-2xl transition group-hover:bg-rose-400/30"></div>
         <div class="relative">
           <p class="mb-8 text-4xl">⚔️</p>
-          <h2 data-i18n="card3Title" class="font-display text-2xl font-extrabold uppercase leading-tight tracking-[0.08em] text-cyan-100">Revenge Leaderboard</h2>
+          <h2 data-i18n="card3Title" class="font-display text-base sm:text-lg font-extrabold uppercase leading-tight tracking-[0.08em] text-cyan-100">Revenge Leaderboard</h2>
           <p data-i18n="card3Sub" class="mt-2 text-sm text-white/55">See who is cloutless</p>
           <span data-i18n="openTool" class="mt-6 inline-flex items-center text-xs font-semibold uppercase tracking-[0.2em] text-rose-300/90">Open</span>
         </div>
@@ -3588,7 +3593,7 @@
           pointsCell.className = "scoreboard-points text-right font-bold text-xs md:text-sm whitespace-nowrap";
           pointsCell.textContent = String(points);
           var tagCell = document.createElement("span");
-          tagCell.className = "scoreboard-status text-right uppercase tracking-[0.06em] text-white/80 text-xs md:text-sm whitespace-nowrap";
+          tagCell.className = "scoreboard-status w-4/12 text-right truncate text-zinc-400 uppercase font-sans text-[10px] tracking-wide";
           tagCell.textContent = tag;
           line.appendChild(rankCell);
           line.appendChild(nameCell);
@@ -5132,7 +5137,7 @@
           pointsCell.className = "scoreboard-points text-right font-bold text-xs md:text-sm whitespace-nowrap";
           pointsCell.textContent = String(points);
           var tagCell = document.createElement("span");
-          tagCell.className = "scoreboard-status text-right uppercase tracking-[0.06em] text-white/80 text-xs md:text-sm whitespace-normal break-words";
+          tagCell.className = "scoreboard-status w-4/12 text-right truncate text-zinc-400 uppercase font-sans text-[10px] tracking-wide";
           tagCell.textContent = tag;
           line.appendChild(rankCell);
           line.appendChild(nameCell);
