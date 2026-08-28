@@ -560,6 +560,10 @@
       text-shadow: 0 0 8px rgba(0, 240, 255, 0.85), 0 0 16px rgba(0, 240, 255, 0.45);
     }
 
+    .neon-box-blue {
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.28), inset 0 0 12px rgba(0, 240, 255, 0.06);
+    }
+
     .neon-text-pink {
       color: #ff8ad8;
       text-shadow: 0 0 8px rgba(255, 0, 170, 0.9), 0 0 16px rgba(255, 0, 170, 0.5);
@@ -939,6 +943,14 @@
     </section>
 
     <div id="main-menu" class="w-full">
+    <section class="w-full p-4 mb-4 bg-zinc-950 border border-cyan-400 rounded-xl neon-box-blue text-left">
+      <h3 class="text-xs font-black neon-text-blue uppercase tracking-widest mb-2">🕹️ QUICK START GUIDE</h3>
+      <ul class="text-[10px] space-y-1.5 text-zinc-300 font-sans">
+        <li>🔥 <strong class="text-white">1. Enter a Tag:</strong> Type any friend's @username or a description inside a game module.</li>
+        <li>📊 <strong class="text-white">2. Run AI Scan:</strong> Consume 1 Arcade Coin to generate an brutal profile roast or itemized Aura receipt ledger.</li>
+        <li>📸 <strong class="text-white">3. Share the Damage:</strong> Save the receipt image straight to your device photos to fire back at squads!</li>
+      </ul>
+    </section>
     <section id="hub-grid" class="grid w-full grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
       <button type="button" data-hub="profile_roaster" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-left md:min-h-[280px] md:p-6">
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-orange-500/20 blur-2xl transition group-hover:bg-orange-400/30"></div>
@@ -1166,7 +1178,7 @@
       </button>
 
       <button id="lock-btn" type="button" onclick="lockTargetOrWatchAd()" class="lock-mode-free w-full rounded-2xl border border-fuchsia-300/70 bg-gradient-to-b from-fuchsia-400 via-pink-500 to-[#a80073] py-3.5 font-display text-base font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_8px_24px_rgba(255,0,170,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]">
-        <span id="lock-btn-label" class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>
+        <span id="lock-btn-label" class="text-xs font-black neon-text-blue">⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)</span>
       </button>
 
       <div id="adsgram-slot" data-ad-surface class="mt-4 rounded-2xl border border-dashed border-white/15 bg-black/25 p-4">
@@ -1666,9 +1678,9 @@
       var STORAGE_MUTE_KEY = "is_muted";
       var SALE_WINDOW_MS = 24 * 60 * 60 * 1000;
       var PREMIUM_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
-      var LOCK_COMPUTE_LABEL = "[ ⚔️ LOCK & COMPUTE ]";
-      var LOCK_TARGET_LABEL = "[ ⚔️ LOCK TARGET ]";
-      var WATCH_AD_RUN_LABEL = "[ ⚡ WATCH AD TO RUN ]";
+      var LOCK_COMPUTE_LABEL = "⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)";
+      var LOCK_TARGET_LABEL = "⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)";
+      var WATCH_AD_RUN_LABEL = "📺 WATCH AD TO UNLOCK SCAN";
       var PREMIUM_FLASH_STARS = 449;
       var PREMIUM_FULL_STARS = 550;
       var REFERRAL_LINK = "https://t.me/cloutmeter_ai_bot/CloutMeter/";
@@ -2312,21 +2324,21 @@
         if (!Number.isFinite(tokens)) tokens = 0;
         adButton.classList.remove("lock-mode-free", "lock-mode-ad", "lock-mode-premium");
         if (is_premium_user === true) {
-          adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>';
+          adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue">' + LOCK_TARGET_LABEL + '</span>';
           adButton.removeAttribute("disabled");
           adButton.disabled = false;
           adButton.classList.add("lock-mode-premium");
           return;
         }
         if (tokens > 0) {
-          adButton.innerHTML = '<span class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>';
+          adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue">' + LOCK_TARGET_LABEL + '</span>';
           adButton.removeAttribute("disabled");
           adButton.disabled = false;
           adButton.classList.remove("opacity-60", "pointer-events-none");
           adButton.classList.add("lock-mode-free");
           return;
         }
-        adButton.innerHTML = '<span class="text-xs font-bold neon-text-blue">📺 WATCH AD: EARN +1 FREE ARCADETOKEN</span>';
+        adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-bold neon-text-blue">' + WATCH_AD_RUN_LABEL + '</span>';
         adButton.classList.add("lock-mode-ad");
       }
 
@@ -4042,12 +4054,12 @@
                 var adButton = document.getElementById("lock-btn");
                 if (currentTokens > 0) {
                   if (adButton) {
-                    adButton.innerHTML = '<span class="text-xs font-black neon-text-blue">🎯 LOCK TARGET (READY TO SCAN)</span>';
+                    adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue">' + LOCK_TARGET_LABEL + '</span>';
                     adButton.removeAttribute('disabled');
                   }
                 } else {
                   if (adButton) {
-                    adButton.innerHTML = '<span class="text-xs font-bold neon-text-blue">📺 WATCH AD: EARN +1 FREE ARCADETOKEN</span>';
+                    adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-bold neon-text-blue">' + WATCH_AD_RUN_LABEL + '</span>';
                   }
                 }
                 applyWalletScanButton(currentTokens);
