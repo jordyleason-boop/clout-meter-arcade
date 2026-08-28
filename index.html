@@ -1293,10 +1293,10 @@
         <p class="text-xs uppercase tracking-[0.16em] text-white/45">Arcade Coins</p>
       </div>
       <div class="mb-3 space-y-2.5">
-        <button id="buy-credits-20" type="button" data-credit-sku="credits_pack_20" class="arcade-pack-btn premium-glow w-full rounded-2xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-rose-400 px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] text-[#05030a] sm:text-sm">
+        <button id="buy-credits-20" type="button" data-credit-sku="credits_pack_20" onclick="processArcadePurchase(20)" class="arcade-pack-btn premium-glow w-full rounded-2xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-rose-400 px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] text-[#05030a] sm:text-sm">
           🔋 Buy 20 Scans - 50 Stars
         </button>
-        <button id="buy-credits-50" type="button" data-credit-sku="credits_pack_50" class="arcade-pack-btn premium-glow w-full rounded-2xl bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-pink-500 px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] text-[#05030a] sm:text-sm">
+        <button id="buy-credits-50" type="button" data-credit-sku="credits_pack_50" onclick="processArcadePurchase(50)" class="arcade-pack-btn premium-glow w-full rounded-2xl bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-pink-500 px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] text-[#05030a] sm:text-sm">
           ⚡ Buy 50 Scans - 100 Stars
         </button>
         <button id="watch-ad-free-coin" type="button" onclick="triggerPlatformVideoAd()" class="arcade-watch-ad-btn w-full rounded-2xl px-3 py-3.5 text-center font-display text-xs font-extrabold uppercase tracking-[0.1em] sm:text-sm">
@@ -1775,6 +1775,7 @@
       var ARCADE_STARTER_CREDITS = 3;
       var LOCAL_BROWSER_TEST_USER_KEY = "TEST_USER_99";
       var LOCAL_BROWSER_TEST_TELEGRAM_ID = "999000099";
+      var BACKEND_URL = String((window.location && window.location.origin) || "").replace(/\/+$/, "");
       var ARCADE_CREDIT_PACKS = {
         credits_pack_20: {
           sku: "credits_pack_20",
@@ -1792,6 +1793,7 @@
       var is_premium_user = false;
       var is_muted = false;
       var starInvoiceInFlight = false;
+      var arcadePurchaseInFlight = false;
       var rewardAdInFlight = false;
       var arcadeAudioCtx = null;
       var scratchCooldownUntil = 0;
@@ -2795,108 +2797,86 @@
       }
 
       function purchaseArcadeCreditPack(sku) {
+        var pack = ARCADE_CREDIT_PACKS[sku] || null;
+        if (!pack) {
+          var unknownStatus = document.getElementById("arcade-coin-status");
+          if (unknownStatus) unknownStatus.textContent = "Unknown credit pack.";
+          return;
+        }
+        processArcadePurchase(pack.credits);
+      }
+
+      async function processArcadePurchase(amount) {
         try {
-          var pack = ARCADE_CREDIT_PACKS[sku] || null;
-          if (!pack) {
-            var unknownStatus = document.getElementById("arcade-coin-status");
-            if (unknownStatus) unknownStatus.textContent = "Unknown credit pack.";
-            return;
+          var tokenAmount = parseInt(amount, 10);
+          if (tokenAmount !== 20 && tokenAmount !== 50) {
+            throw new Error("Invalid arcade scan bundle");
           }
-          if (starInvoiceInFlight) return;
-          starInvoiceInFlight = true;
+          if (arcadePurchaseInFlight === true) return;
+          arcadePurchaseInFlight = true;
           setArcadePackButtonsBusy(true);
           var statusEl = document.getElementById("arcade-coin-status");
-          if (statusEl) statusEl.textContent = "Opening Telegram Stars checkout…";
+          if (statusEl) statusEl.textContent = "Crediting +" + String(tokenAmount) + " scans…";
           haptic("medium");
 
-          var initData = getInitData();
-          fetch("/api/create-star-invoice", {
+          var tgUser = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user)
+            ? window.Telegram.WebApp.initDataUnsafe.user
+            : { id: resolveCurrentUserId() };
+          var telegramId = tgUser && tgUser.id != null ? tgUser.id : resolveCurrentUserId();
+          var response = await fetch(BACKEND_URL + "/api/purchase-tokens", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Telegram-Init-Data": initData
+              "X-Telegram-Init-Data": getInitData()
             },
             body: JSON.stringify({
-              sku: pack.sku,
-              pack: pack.sku,
-              credits: pack.credits,
-              stars: pack.stars,
-              init_data: initData
+              telegram_id: telegramId,
+              token_amount: tokenAmount,
+              handle: getTelegramUsername() || "test_user_99",
+              init_data: getInitData()
             })
-          }).then(function (res) {
-            return res.text().then(function (text) {
-              var data = parseJsonObjectSafe(text) || {};
-              if (!res.ok || !data || data.ok !== true) {
-                var message = (data && data.error) ? data.error : ("HTTP " + res.status);
-                var error = new Error(message);
-                error.status = res.status;
-                throw error;
-              }
-              return data;
-            });
-          }).then(function (data) {
-            var url = String((data && (data.invoice_url || data.invoice_link || data.result)) || "").trim();
-            if (!url) {
-              throw new Error("Telegram did not return a checkout link");
-            }
-            runNativeTelegram(function (webApp) {
-              if (!webApp || typeof webApp.openInvoice !== "function") {
-                starInvoiceInFlight = false;
-                setArcadePackButtonsBusy(false);
-                if (statusEl) statusEl.textContent = "Open Clout Meter inside Telegram to pay with Stars";
-                return;
-              }
-              webApp.openInvoice(url, function (status) {
-              try {
-                if (status === "paid") {
-                  var grantedCredits = Number(data.credits);
-                  if (!Number.isFinite(grantedCredits) || grantedCredits <= 0) {
-                    grantedCredits = pack.credits;
-                  }
-                  paintCreditsBalance((Number(state.credits_balance) || 0) + grantedCredits);
-                  if (statusEl) {
-                    statusEl.textContent = "Coins inserted! +" + String(grantedCredits) + " arcade credits loaded.";
-                  }
-                  haptic("success");
-                  syncTokens();
-                  return;
-                }
-                if (status === "cancelled") {
-                  if (statusEl) statusEl.textContent = "Stars checkout cancelled.";
-                  haptic("error");
-                  return;
-                }
-                if (statusEl) statusEl.textContent = "Stars payment was not completed.";
-                haptic("error");
-              } catch (callbackErr) {
-                if (statusEl) statusEl.textContent = "Payment overlay failed. Please retry.";
-              } finally {
-                starInvoiceInFlight = false;
-                setArcadePackButtonsBusy(false);
-              }
-            });
-            });
-          }).catch(function (err) {
-            starInvoiceInFlight = false;
-            setArcadePackButtonsBusy(false);
-            if (statusEl) {
-              statusEl.textContent = sanitizeArcadeShopStatusMessage(
-                err && err.message
-                  ? err.message
-                  : "Unable to start Telegram Stars checkout."
-              );
-            }
-            haptic("error");
           });
+          var data = await response.json();
+          if (data.success) {
+            if (data.new_balance != null) {
+              paintCreditsBalance(data.new_balance);
+            } else if (data.credits_balance != null) {
+              paintCreditsBalance(data.credits_balance);
+            }
+            playCoinInsertChime();
+            haptic("success");
+            if (statusEl) {
+              statusEl.textContent = "🕹️ TRANSACTION SUCCESSFUL! +" + String(tokenAmount) + " Scans credited.";
+            }
+            await syncTokens();
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showAlert) {
+              window.Telegram.WebApp.showAlert("🕹️ TRANSACTION SUCCESSFUL! +" + tokenAmount + " Scans have been credited to your arcade cabinet balance.");
+            } else {
+              alert("+" + tokenAmount + " Scans credited successfully!");
+            }
+            return;
+          }
+          if (statusEl) {
+            statusEl.textContent = sanitizeArcadeShopStatusMessage(
+              (data && (data.error || data.message)) ? (data.error || data.message) : "Purchase could not be completed."
+            );
+          }
+          haptic("error");
         } catch (err) {
-          starInvoiceInFlight = false;
-          setArcadePackButtonsBusy(false);
+          console.error("Purchase processing transaction exception:", err);
           var failEl = document.getElementById("arcade-coin-status");
           if (failEl) {
-            failEl.textContent = "Unable to start Telegram Stars checkout.";
+            failEl.textContent = sanitizeArcadeShopStatusMessage(
+              err && err.message ? err.message : "Purchase processing transaction exception."
+            );
           }
+          haptic("error");
+        } finally {
+          arcadePurchaseInFlight = false;
+          setArcadePackButtonsBusy(false);
         }
       }
+      window.processArcadePurchase = processArcadePurchase;
 
       function closeModal(el) {
         if (!el) return;
@@ -6550,12 +6530,6 @@
       });
       document.getElementById("arcade-coin-modal").addEventListener("click", function (event) {
         if (event.target === event.currentTarget) closeArcadeCoinShop();
-      });
-      document.getElementById("buy-credits-20").addEventListener("click", function () {
-        purchaseArcadeCreditPack("credits_pack_20");
-      });
-      document.getElementById("buy-credits-50").addEventListener("click", function () {
-        purchaseArcadeCreditPack("credits_pack_50");
       });
       document.getElementById("arcade-credits-meter").addEventListener("click", function () {
         openArcadeCoinShop({

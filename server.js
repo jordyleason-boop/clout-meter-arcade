@@ -1009,6 +1009,156 @@ app.post("/api/reward-ad", async (req, res) => {
   }
 });
 
+app.post("/api/purchase-tokens", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const clientIp = getClientIp(req);
+    if (!ipLimiter.allow(`ip-purchase-tokens:${clientIp}`)) {
+      res.status(429).json({ success: false, error: "Too many requests" });
+      return;
+    }
+
+    const origin = req.get("Origin");
+    if (origin && origin !== FRONTEND_ORIGIN) {
+      res.status(403).json({ success: false, error: "Forbidden origin" });
+      return;
+    }
+
+    if (!supabase) {
+      res.status(503).json({
+        success: false,
+        error: "Arcade credit ledger is not configured"
+      });
+      return;
+    }
+
+    const body = req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? req.body
+      : {};
+    const token_amount = body.token_amount;
+    const parsedTokenAmount = parseInt(token_amount, 10);
+    if (parsedTokenAmount !== 20 && parsedTokenAmount !== 50) {
+      res.status(400).json({
+        success: false,
+        error: "token_amount must be 20 or 50"
+      });
+      return;
+    }
+
+    const resolved = resolveValidatedTelegramUser(req);
+    const bodyTelegramId = normalizeArcadeTelegramId(
+      body.telegram_id != null
+        ? body.telegram_id
+        : (body.telegramId != null ? body.telegramId : body.user_id)
+    );
+
+    let telegramId = 0;
+    let handle = "";
+    if (resolved.ok && Number.isFinite(resolved.telegramId) && resolved.telegramId > 0) {
+      telegramId = Number(resolved.telegramId);
+      handle = sanitizeHandle(resolved.handle || "") || "";
+      if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0 && bodyTelegramId !== telegramId) {
+        res.status(403).json({
+          success: false,
+          error: "telegram_id does not match the authenticated Telegram session"
+        });
+        return;
+      }
+    } else if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0) {
+      telegramId = bodyTelegramId;
+      handle = sanitizeHandle(body.handle || body.username || "") || "test_user_99";
+    } else {
+      res.status(400).json({
+        success: false,
+        error: "telegram_id is required"
+      });
+      return;
+    }
+
+    if (!userLimiter.allow(`purchase-tokens:${telegramId}`)) {
+      res.status(429).json({ success: false, error: "Too many purchase requests" });
+      return;
+    }
+
+    const provisioned = await getOrCreateUser(telegramId, handle);
+    if (!provisioned.ok || !provisioned.user) {
+      res.status(502).json({
+        success: false,
+        error: provisioned.error || "Unable to provision users row before purchase"
+      });
+      return;
+    }
+
+    const { data: existingUser, error: readError } = await supabase
+      .from("users")
+      .select("telegram_id, username, credits_balance")
+      .eq("telegram_id", telegramId)
+      .maybeSingle();
+
+    if (readError) {
+      res.status(502).json({
+        success: false,
+        error: readError.message || "Unable to read credits_balance"
+      });
+      return;
+    }
+
+    if (!existingUser) {
+      res.status(502).json({
+        success: false,
+        error: "User ledger row missing after getOrCreateUser"
+      });
+      return;
+    }
+
+    const newBalance = Number(existingUser.credits_balance) + parseInt(token_amount, 10);
+    if (!Number.isFinite(Number(newBalance)) || Number(newBalance) < 0) {
+      res.status(502).json({
+        success: false,
+        error: "Calculated credits_balance is invalid"
+      });
+      return;
+    }
+
+    const { data: patchedRow, error: patchError } = await supabase
+      .from("users")
+      .update({ credits_balance: newBalance })
+      .eq("telegram_id", telegramId)
+      .select("telegram_id, username, credits_balance")
+      .maybeSingle();
+
+    if (patchError) {
+      res.status(502).json({
+        success: false,
+        error: patchError.message || "Unable to patch credits_balance"
+      });
+      return;
+    }
+
+    const serialized = serializeUserLedger(patchedRow || Object.assign({}, existingUser, {
+      credits_balance: newBalance
+    }));
+    if (serialized) {
+      serialized.credits_balance = newBalance;
+    }
+
+    res.status(200).json({
+      success: true,
+      ok: true,
+      new_balance: newBalance,
+      credits_balance: newBalance,
+      credits_added: parsedTokenAmount,
+      telegram_id: telegramId,
+      user: serialized
+    });
+  } catch (_err) {
+    res.status(500).json({
+      success: false,
+      error: "Purchase token grant failed"
+    });
+  }
+});
+
 app.post("/api/energy", async (req, res) => {
   res.set("Cache-Control", "no-store");
   try {
