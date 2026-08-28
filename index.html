@@ -725,7 +725,7 @@
     .scoreboard-head,
     .scoreboard-row {
       display: grid;
-      grid-template-columns: 2.35rem minmax(0, 1.45fr) 3.85rem minmax(0, 1.35fr);
+      grid-template-columns: 2rem minmax(0, 1fr) 3.4rem minmax(5.75rem, 1.15fr);
       gap: 0.35rem 0.4rem;
       align-items: start;
       width: 100%;
@@ -778,14 +778,17 @@
 
     .scoreboard-status {
       min-width: 0;
+      width: auto !important;
       max-width: 100%;
+      justify-self: stretch;
       overflow: visible;
-      overflow-wrap: anywhere;
-      word-break: break-word;
+      overflow-wrap: break-word;
+      word-break: normal;
       white-space: normal;
       text-overflow: clip;
       text-align: right;
       line-height: 1.15;
+      hyphens: none;
     }
 
     .revenge-self-lock {
