@@ -137,6 +137,30 @@ const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 
+function resolveTelegramWebhookUrl() {
+  const explicit = String(process.env.TELEGRAM_WEBHOOK_URL || "").trim();
+  if (explicit) return explicit;
+  return `${FRONTEND_ORIGIN}/api/telegram-webhook`;
+}
+
+function telegramBotApiMethodUrl(method) {
+  const token = String(process.env.TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN || "").trim();
+  return `${TELEGRAM_BOT_API_BASE}/bot${token}/${method}`;
+}
+
+const telegramWebhookJson = express.json({
+  limit: LIMITS.jsonBytes,
+  strict: true
+});
+
+// Payment hooks must not sit behind CORS or other /api middleware locks.
+app.post("/api/telegram-webhook", telegramWebhookJson, async (req, res) => {
+  await handleTelegramWebhook(req, res);
+});
+app.post("/webhook", telegramWebhookJson, async (req, res) => {
+  await handleTelegramWebhook(req, res);
+});
+
 const corsMiddleware = cors({
   origin(origin, callback) {
     if (origin === FRONTEND_ORIGIN) {
@@ -185,6 +209,44 @@ app.get("/api/public-config", (_req, res) => {
     supported_language_codes: SUPPORTED_LANGUAGE_CODES.slice(),
     modules: Object.keys(APP_MODULES)
   });
+});
+
+app.get("/api/init-webhook", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const token = String(process.env.TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN || "").trim();
+    if (!token || !/^\d+:[A-Za-z0-9_-]+$/.test(token)) {
+      return res.status(503).json({
+        success: false,
+        error: "Telegram bot token is not configured"
+      });
+    }
+
+    const webhookUrl = resolveTelegramWebhookUrl();
+    const payload = {
+      url: webhookUrl,
+      allowed_updates: ["message", "edited_message", "pre_checkout_query"]
+    };
+    const secret = String(process.env.TELEGRAM_WEBHOOK_SECRET || "").trim();
+    if (secret) payload.secret_token = secret;
+
+    const response = await fetch(telegramBotApiMethodUrl("setWebhook"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    return res.json({
+      success: data && data.ok === true,
+      webhook_url: webhookUrl,
+      telegram_response: data
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err && err.message ? err.message : "setWebhook failed"
+    });
+  }
 });
 
 app.post("/api/process-action", async (req, res) => {
@@ -1346,14 +1408,6 @@ app.post("/api/create-star-invoice", async (req, res) => {
   } catch (_err) {
     res.status(500).json({ ok: false, error: "Unable to create Telegram Stars invoice" });
   }
-});
-
-app.post("/api/telegram-webhook", async (req, res) => {
-  await handleTelegramWebhook(req, res);
-});
-
-app.post("/webhook", async (req, res) => {
-  await handleTelegramWebhook(req, res);
 });
 
 app.use((err, _req, res, _next) => {
@@ -3569,29 +3623,33 @@ async function captureSuccessfulPayment(message) {
 async function handleTelegramWebhook(req, res) {
   res.set("Cache-Control", "no-store");
   try {
+    console.log("Incoming Telegram Update:", JSON.stringify(req.body));
     const update = req.body && typeof req.body === "object" && !Array.isArray(req.body)
       ? req.body
-      : null;
+      : {};
 
-    if (update && update.pre_checkout_query) {
+    if (update.pre_checkout_query) {
       const queryId = update.pre_checkout_query.id;
       try {
-        await answerPreCheckoutQueryImmediately(queryId);
+        const controller = new AbortController();
+        const timer = setTimeout(function () {
+          controller.abort();
+        }, PRE_CHECKOUT_ANSWER_TIMEOUT_MS);
+        try {
+          await fetch(telegramBotApiMethodUrl("answerPreCheckoutQuery"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pre_checkout_query_id: queryId, ok: true }),
+            signal: controller.signal
+          });
+        } finally {
+          clearTimeout(timer);
+        }
         return res.json({ success: true });
       } catch (err) {
-        console.error("Failed to clear pre-checkout query loop:", err);
+        console.error("Payment loop validation exception:", err);
         return res.sendStatus(500);
       }
-    }
-
-    if (!webhookSecretIsValid(req)) {
-      res.status(401).json({ ok: false, error: "Unauthorized webhook" });
-      return;
-    }
-
-    if (!update) {
-      res.status(400).json({ ok: false, error: "Invalid Telegram update" });
-      return;
     }
 
     const paymentMessage = update.message && update.message.successful_payment
@@ -3610,7 +3668,7 @@ async function handleTelegramWebhook(req, res) {
         const tgId = parseInt(userIdMatch[1], 10);
         const amountToCredit = parseInt(tokensMatch[1], 10);
         const handle = sanitizeHandle((paymentMessage.from && paymentMessage.from.username) || "") || "";
-        console.log(`Payment confirmed! Crediting +${amountToCredit} coins to user ${tgId}`);
+        console.log(`Payment confirmed! Crediting +${amountToCredit} to user ${tgId}`);
         try {
           const credited = (amountToCredit === 20 || amountToCredit === 50)
             ? await creditPurchasedArcadeTokens(tgId, amountToCredit, handle)
@@ -3625,19 +3683,19 @@ async function handleTelegramWebhook(req, res) {
         } catch (creditErr) {
           console.error("Stars settlement credit exception:", creditErr);
         }
-        return res.json({ success: true });
-      }
-
-      const captured = await captureSuccessfulPayment(paymentMessage);
-      if (!captured.ok) {
-        console.error("successful_payment fallback failed:", captured.error || "unknown error");
+      } else {
+        const captured = await captureSuccessfulPayment(paymentMessage);
+        if (!captured.ok) {
+          console.error("successful_payment fallback failed:", captured.error || "unknown error");
+        }
       }
       return res.json({ success: true });
     }
 
-    res.status(200).json({ ok: true, handled: "ignored" });
-  } catch (_err) {
-    res.status(200).json({ ok: false, error: "Webhook processing failed" });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Payment loop validation exception:", err);
+    return res.json({ success: true });
   }
 }
 
