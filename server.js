@@ -1024,10 +1024,11 @@ app.post("/api/purchase-tokens", async (req, res) => {
       return;
     }
 
-    if (!supabase) {
+    const telegramBotToken = String(process.env.TELEGRAM_BOT_TOKEN || botToken || "").trim();
+    if (!telegramBotToken || !/^\d+:[A-Za-z0-9_-]+$/.test(telegramBotToken)) {
       res.status(503).json({
         success: false,
-        error: "Arcade credit ledger is not configured"
+        error: "Telegram Stars billing is not configured"
       });
       return;
     }
@@ -1035,9 +1036,8 @@ app.post("/api/purchase-tokens", async (req, res) => {
     const body = req.body && typeof req.body === "object" && !Array.isArray(req.body)
       ? req.body
       : {};
-    const token_amount = body.token_amount;
-    const parsedTokenAmount = parseInt(token_amount, 10);
-    if (parsedTokenAmount !== 20 && parsedTokenAmount !== 50) {
+    const token_amount = parseInt(body.token_amount, 10);
+    if (token_amount !== 20 && token_amount !== 50) {
       res.status(400).json({
         success: false,
         error: "token_amount must be 20 or 50"
@@ -1045,6 +1045,7 @@ app.post("/api/purchase-tokens", async (req, res) => {
       return;
     }
 
+    const starAmount = token_amount === 20 ? 50 : 100;
     const resolved = resolveValidatedTelegramUser(req);
     const bodyTelegramId = normalizeArcadeTelegramId(
       body.telegram_id != null
@@ -1052,12 +1053,10 @@ app.post("/api/purchase-tokens", async (req, res) => {
         : (body.telegramId != null ? body.telegramId : body.user_id)
     );
 
-    let telegramId = 0;
-    let handle = "";
+    let telegram_id = 0;
     if (resolved.ok && Number.isFinite(resolved.telegramId) && resolved.telegramId > 0) {
-      telegramId = Number(resolved.telegramId);
-      handle = sanitizeHandle(resolved.handle || "") || "";
-      if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0 && bodyTelegramId !== telegramId) {
+      telegram_id = Number(resolved.telegramId);
+      if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0 && bodyTelegramId !== telegram_id) {
         res.status(403).json({
           success: false,
           error: "telegram_id does not match the authenticated Telegram session"
@@ -1065,8 +1064,7 @@ app.post("/api/purchase-tokens", async (req, res) => {
         return;
       }
     } else if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0) {
-      telegramId = bodyTelegramId;
-      handle = sanitizeHandle(body.handle || body.username || "") || "test_user_99";
+      telegram_id = bodyTelegramId;
     } else {
       res.status(400).json({
         success: false,
@@ -1075,86 +1073,50 @@ app.post("/api/purchase-tokens", async (req, res) => {
       return;
     }
 
-    if (!userLimiter.allow(`purchase-tokens:${telegramId}`)) {
+    if (!invoiceLimiter.allow(`invoice:${telegram_id}`) || !userLimiter.allow(`purchase-tokens:${telegram_id}`)) {
       res.status(429).json({ success: false, error: "Too many purchase requests" });
       return;
     }
 
-    const provisioned = await getOrCreateUser(telegramId, handle);
-    if (!provisioned.ok || !provisioned.user) {
+    const invoicePayload = `user_ref_${telegram_id}_amount_${token_amount}`;
+    if (Buffer.byteLength(invoicePayload, "utf8") > 128) {
+      res.status(500).json({ success: false, error: "Invoice payload exceeded Telegram size limits" });
+      return;
+    }
+
+    const created = await telegramBotApi("createInvoiceLink", {
+      title: `${token_amount} Arcade Scans`,
+      description: `Top up your arcade machine wallet with ${token_amount} premium AI scans!`,
+      payload: invoicePayload,
+      provider_token: "",
+      currency: "XTR",
+      prices: [{ label: `${token_amount} Scans Bundle`, amount: starAmount }]
+    });
+
+    if (!created.ok || typeof created.result !== "string" || !created.result.trim()) {
       res.status(502).json({
         success: false,
-        error: provisioned.error || "Unable to provision users row before purchase"
+        error: created.error || "Telegram did not return an invoice link"
       });
       return;
     }
 
-    const { data: existingUser, error: readError } = await supabase
-      .from("users")
-      .select("telegram_id, username, credits_balance")
-      .eq("telegram_id", telegramId)
-      .maybeSingle();
-
-    if (readError) {
-      res.status(502).json({
-        success: false,
-        error: readError.message || "Unable to read credits_balance"
-      });
-      return;
-    }
-
-    if (!existingUser) {
-      res.status(502).json({
-        success: false,
-        error: "User ledger row missing after getOrCreateUser"
-      });
-      return;
-    }
-
-    const newBalance = Number(existingUser.credits_balance) + parseInt(token_amount, 10);
-    if (!Number.isFinite(Number(newBalance)) || Number(newBalance) < 0) {
-      res.status(502).json({
-        success: false,
-        error: "Calculated credits_balance is invalid"
-      });
-      return;
-    }
-
-    const { data: patchedRow, error: patchError } = await supabase
-      .from("users")
-      .update({ credits_balance: newBalance })
-      .eq("telegram_id", telegramId)
-      .select("telegram_id, username, credits_balance")
-      .maybeSingle();
-
-    if (patchError) {
-      res.status(502).json({
-        success: false,
-        error: patchError.message || "Unable to patch credits_balance"
-      });
-      return;
-    }
-
-    const serialized = serializeUserLedger(patchedRow || Object.assign({}, existingUser, {
-      credits_balance: newBalance
-    }));
-    if (serialized) {
-      serialized.credits_balance = newBalance;
-    }
-
+    const invoiceLink = created.result.trim();
     res.status(200).json({
       success: true,
       ok: true,
-      new_balance: newBalance,
-      credits_balance: newBalance,
-      credits_added: parsedTokenAmount,
-      telegram_id: telegramId,
-      user: serialized
+      invoiceLink: invoiceLink,
+      invoice_link: invoiceLink,
+      invoice_url: invoiceLink,
+      telegram_id: telegram_id,
+      token_amount: token_amount,
+      stars: starAmount,
+      currency: "XTR"
     });
   } catch (_err) {
     res.status(500).json({
       success: false,
-      error: "Purchase token grant failed"
+      error: "Unable to create Telegram Stars invoice"
     });
   }
 });
@@ -3301,7 +3263,32 @@ async function telegramBotApi(method, payload) {
   }
 }
 
+function parseUserRefInvoicePayload(raw) {
+  try {
+    const text = String(raw == null ? "" : raw).trim();
+    const match = text.match(/^user_ref_(\d+)_amount_(\d+)$/);
+    if (!match) return null;
+    const userId = match[1];
+    const token_amount = parseInt(match[2], 10);
+    if (!userId || (token_amount !== 20 && token_amount !== 50)) return null;
+    const stars = token_amount === 20 ? 50 : 100;
+    const sku = token_amount === 20 ? "credits_pack_20" : "credits_pack_50";
+    return {
+      userId: userId,
+      sku: sku,
+      credits: token_amount,
+      stars: stars,
+      token_amount: token_amount,
+      grants_premium: false
+    };
+  } catch (_err) {
+    return null;
+  }
+}
+
 function parseStarInvoicePayload(raw) {
+  const userRef = parseUserRefInvoicePayload(raw);
+  if (userRef) return userRef;
   try {
     if (typeof raw !== "string" || !raw.trim()) return null;
     const parsed = JSON.parse(raw);
@@ -3318,6 +3305,9 @@ function parseStarInvoicePayload(raw) {
         ? Math.floor(creditsFromPayload)
         : pack.credits,
       stars: pack.stars,
+      token_amount: Number.isFinite(creditsFromPayload) && creditsFromPayload > 0
+        ? Math.floor(creditsFromPayload)
+        : pack.credits,
       grants_premium: pack.grants_premium === true
     };
   } catch (_err) {
@@ -3358,6 +3348,75 @@ function webhookSecretIsValid(req) {
     return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
   } catch (_err) {
     return false;
+  }
+}
+
+async function creditPurchasedArcadeTokens(telegramId, tokenAmount, handle) {
+  if (!supabase) {
+    return { ok: false, skipped: true, error: "Supabase is not configured" };
+  }
+  try {
+    const numericId = normalizeArcadeTelegramId(telegramId);
+    const token_amount = parseInt(tokenAmount, 10);
+    if (!Number.isFinite(numericId) || numericId <= 0) {
+      return { ok: false, error: "Invalid telegram_id" };
+    }
+    if (token_amount !== 20 && token_amount !== 50) {
+      return { ok: false, error: "token_amount must be 20 or 50" };
+    }
+
+    const provisioned = await getOrCreateUser(numericId, handle || "");
+    if (!provisioned.ok || !provisioned.user) {
+      return {
+        ok: false,
+        error: provisioned.error || "Unable to provision users row after Stars payment"
+      };
+    }
+
+    const { data: existingUser, error: readError } = await supabase
+      .from("users")
+      .select("telegram_id, username, credits_balance")
+      .eq("telegram_id", numericId)
+      .maybeSingle();
+
+    if (readError) {
+      return { ok: false, error: readError.message || "Unable to read credits_balance" };
+    }
+    if (!existingUser) {
+      return { ok: false, error: "User ledger row missing after getOrCreateUser" };
+    }
+
+    const newBalance = Number(existingUser.credits_balance) + parseInt(token_amount, 10);
+    if (!Number.isFinite(Number(newBalance)) || Number(newBalance) < 0) {
+      return { ok: false, error: "Calculated credits_balance is invalid" };
+    }
+
+    const { data: patchedRow, error: patchError } = await supabase
+      .from("users")
+      .update({ credits_balance: newBalance })
+      .eq("telegram_id", numericId)
+      .select("telegram_id, username, credits_balance")
+      .maybeSingle();
+
+    if (patchError) {
+      return { ok: false, error: patchError.message || "Unable to patch credits_balance" };
+    }
+
+    const serialized = serializeUserLedger(patchedRow || Object.assign({}, existingUser, {
+      credits_balance: newBalance
+    }));
+    if (serialized) {
+      serialized.credits_balance = newBalance;
+    }
+    return {
+      ok: true,
+      credits_added: token_amount,
+      credits_balance: newBalance,
+      new_balance: newBalance,
+      user: serialized
+    };
+  } catch (_err) {
+    return { ok: false, error: "Stars payment credit grant failed" };
   }
 }
 
@@ -3428,9 +3487,11 @@ async function captureSuccessfulPayment(message) {
     }
 
     const handle = sanitizeHandle((message.from && message.from.username) || "") || "";
-    const creditsToAdd = fromPayload && Number.isFinite(Number(fromPayload.credits))
-      ? Math.floor(Number(fromPayload.credits))
-      : pack.credits;
+    const tokenAmount = fromPayload && fromPayload.token_amount != null
+      ? parseInt(fromPayload.token_amount, 10)
+      : (fromPayload && Number.isFinite(Number(fromPayload.credits))
+        ? Math.floor(Number(fromPayload.credits))
+        : pack.credits);
 
     let record = null;
     if (pack.grants_premium === true || pack.sku === PREMIUM_SKU) {
@@ -3449,12 +3510,14 @@ async function captureSuccessfulPayment(message) {
       }
     }
 
-    const credited = await addArcadeCredits(userId, handle, creditsToAdd);
+    const credited = (tokenAmount === 20 || tokenAmount === 50)
+      ? await creditPurchasedArcadeTokens(userId, tokenAmount, handle)
+      : await addArcadeCredits(userId, handle, tokenAmount);
     if (credited.skipped) {
       return {
         ok: true,
         record: record,
-        credits_added: creditsToAdd,
+        credits_added: tokenAmount,
         credits_balance: null,
         dbFailed: false
       };
