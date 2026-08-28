@@ -2807,16 +2807,17 @@
       }
 
       async function processArcadePurchase(amount) {
+        if (arcadePurchaseInFlight === true) return;
+        var invoiceOpened = false;
+        arcadePurchaseInFlight = true;
         try {
           var tokenAmount = parseInt(amount, 10);
           if (tokenAmount !== 20 && tokenAmount !== 50) {
             throw new Error("Invalid arcade scan bundle");
           }
-          if (arcadePurchaseInFlight === true) return;
-          arcadePurchaseInFlight = true;
           setArcadePackButtonsBusy(true);
           var statusEl = document.getElementById("arcade-coin-status");
-          if (statusEl) statusEl.textContent = "Crediting +" + String(tokenAmount) + " scans…";
+          if (statusEl) statusEl.textContent = "Opening Telegram Stars checkout…";
           haptic("medium");
 
           var tgUser = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user)
@@ -2837,30 +2838,53 @@
             })
           });
           var data = await response.json();
-          if (data.success) {
-            if (data.new_balance != null) {
-              paintCreditsBalance(data.new_balance);
-            } else if (data.credits_balance != null) {
-              paintCreditsBalance(data.credits_balance);
+          if (data && data.success) {
+            var invoiceLink = data.invoiceLink || data.invoice_link || data.invoice_url;
+            if (!invoiceLink) {
+              throw new Error("Telegram did not return a checkout link");
             }
-            playCoinInsertChime();
-            haptic("success");
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openInvoice) {
+              invoiceOpened = true;
+              window.Telegram.WebApp.openInvoice(invoiceLink, function (status) {
+                try {
+                  if (status === "paid") {
+                    if (statusEl) statusEl.textContent = "🎰 PAYMENT SETTLED! Fresh Arcade Coins are hitting your cabinet wallet now.";
+                    haptic("success");
+                    syncTokens();
+                    try {
+                      if (window.Telegram.WebApp.initData && typeof window.Telegram.WebApp.showAlert === "function") {
+                        window.Telegram.WebApp.showAlert("🎰 PAYMENT SETTLED! Your transaction has been recorded. Your fresh Arcade Coins are hitting your cabinet wallet now!");
+                      }
+                    } catch (_paidAlertErr) {}
+                  } else if (status === "cancelled") {
+                    if (statusEl) statusEl.textContent = "Transaction cancelled. Insert Telegram Stars whenever you are ready to top up.";
+                    haptic("error");
+                    try {
+                      if (window.Telegram.WebApp.initData && typeof window.Telegram.WebApp.showAlert === "function") {
+                        window.Telegram.WebApp.showAlert("Transaction cancelled. Insert Telegram Stars whenever you are ready to top up.");
+                      }
+                    } catch (_cancelAlertErr) {}
+                  } else {
+                    if (statusEl) statusEl.textContent = "Payment transaction pending verification loop updates.";
+                    try {
+                      if (window.Telegram.WebApp.initData && typeof window.Telegram.WebApp.showAlert === "function") {
+                        window.Telegram.WebApp.showAlert("Payment transaction pending verification loop updates.");
+                      }
+                    } catch (_pendingAlertErr) {}
+                  }
+                } catch (callbackErr) {
+                  if (statusEl) statusEl.textContent = "Payment overlay failed. Please retry.";
+                } finally {
+                  arcadePurchaseInFlight = false;
+                  setArcadePackButtonsBusy(false);
+                }
+              });
+              return;
+            }
             if (statusEl) {
-              statusEl.textContent = "🕹️ TRANSACTION SUCCESSFUL! +" + String(tokenAmount) + " Scans credited.";
+              statusEl.textContent = "Telegram Stars payment wrapper unavailable in standard desktop browser viewports.";
             }
-            await syncTokens();
-            try {
-              var webApp = window.Telegram && window.Telegram.WebApp;
-              if (webApp && typeof webApp.showAlert === "function" && webApp.initData) {
-                webApp.showAlert("🕹️ TRANSACTION SUCCESSFUL! +" + tokenAmount + " Scans have been credited to your arcade cabinet balance.");
-              } else {
-                alert("+" + tokenAmount + " Scans credited successfully!");
-              }
-            } catch (_alertErr) {
-              try {
-                alert("+" + tokenAmount + " Scans credited successfully!");
-              } catch (_fallbackErr) {}
-            }
+            alert("Telegram Stars payment wrapper unavailable in standard desktop browser viewports.");
             return;
           }
           if (statusEl) {
@@ -2879,8 +2903,10 @@
           }
           haptic("error");
         } finally {
-          arcadePurchaseInFlight = false;
-          setArcadePackButtonsBusy(false);
+          if (!invoiceOpened) {
+            arcadePurchaseInFlight = false;
+            setArcadePackButtonsBusy(false);
+          }
         }
       }
       window.processArcadePurchase = processArcadePurchase;
