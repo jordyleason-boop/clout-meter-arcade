@@ -686,6 +686,25 @@
       box-shadow: 0 0 18px rgba(255, 32, 80, 0.42), inset 0 0 0 1px rgba(255, 90, 110, 0.22);
     }
 
+    #clout-metrics > div {
+      container-type: inline-size;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    #clout-metrics > div > span:first-child {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      line-height: 1.15;
+      font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+      font-size: clamp(8px, 15.5cqi, 12px);
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
     .metric-track {
       height: 0.42rem;
       overflow: hidden;
@@ -1094,19 +1113,19 @@
             <span id="slot-roast-handle" class="min-w-0 truncate font-display text-sm font-extrabold tracking-wide text-cyan-100">@unknown</span>
             <span data-gold-pass-badge class="gold-pass-badge rounded-full px-2 py-0.5 font-display text-[9px] font-extrabold uppercase tracking-[0.14em]">👑 GOLD PASS</span>
           </div>
-          <div id="clout-metrics" class="grid w-full grid-cols-3 gap-2 px-1 text-center sm:px-4">
-            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-cyan-400/20 p-2">
-              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center font-display text-cyan-200">Charisma</span>
+          <div id="clout-metrics" class="grid w-full grid-cols-3 gap-1.5 px-1 text-center sm:gap-2 sm:px-4">
+            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-cyan-400/20 px-1.5 py-2">
+              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center text-cyan-200">Charisma</span>
               <span id="metric-charisma-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-cyan-100 xs:text-xs sm:text-sm">0/10</span>
               <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-charisma-bar" class="metric-fill metric-cyan rounded-full"></div></div>
             </div>
-            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-fuchsia-400/20 p-2">
-              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center font-display text-fuchsia-200">Cringe</span>
+            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-fuchsia-400/20 px-1.5 py-2">
+              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center text-fuchsia-200">Cringe</span>
               <span id="metric-cringe-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-fuchsia-100 xs:text-xs sm:text-sm">0/10</span>
               <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-cringe-bar" class="metric-fill metric-magenta rounded-full"></div></div>
             </div>
-            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-purple-400/20 p-2">
-              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center font-display text-purple-200">Threat</span>
+            <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-purple-400/20 px-1.5 py-2">
+              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center text-purple-200">Threat</span>
               <span id="metric-threat-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-purple-100 xs:text-xs sm:text-sm">0/10</span>
               <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-threat-bar" class="metric-fill metric-purple rounded-full"></div></div>
             </div>
@@ -4834,8 +4853,8 @@
       function wrapVibeMatrixHeaders(root) {
         var scope = root || document.getElementById("result-profile_roaster");
         if (!scope) return;
-        var headings = scope.querySelectorAll("h4");
         var neonClass = "mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold/80";
+        var headings = scope.querySelectorAll("h4");
         var i;
         for (i = 0; i < headings.length; i += 1) {
           var heading = headings[i];
@@ -4849,16 +4868,25 @@
 
       function extractVibeMatrix(payload) {
         var data = unwrapModulePayload(payload);
-        var line = coercePayloadString(data.vibe_matrix);
-        if (line) return line;
-        line = coercePayloadString(data.vibeMatrix);
-        if (line) return line;
-        line = coercePayloadString(data.vibe);
-        if (line) return line;
-        var blob = coercePayloadString(data.roast) || coercePayloadString(data.brutal_oneliner) || "";
-        line = parseLabeledRoastSection(blob, "Vibe matrix");
-        if (line) return line;
-        return parseLabeledRoastSection(blob, "VIBE MATRIX");
+        var candidates = [
+          coercePayloadString(data.vibe_matrix),
+          coercePayloadString(data.vibeMatrix),
+          coercePayloadString(data.vibe)
+        ];
+        var i;
+        for (i = 0; i < candidates.length; i += 1) {
+          if (!candidates[i]) continue;
+          var nested = parseLabeledRoastSection(candidates[i], "Vibe matrix")
+            || parseLabeledRoastSection(candidates[i], "VIBE MATRIX");
+          return nested || candidates[i];
+        }
+        var blob = coercePayloadString(data.roast)
+          || coercePayloadString(data.brutal_oneliner)
+          || coercePayloadString(data.bio_annihilation)
+          || "";
+        return parseLabeledRoastSection(blob, "Vibe matrix")
+          || parseLabeledRoastSection(blob, "VIBE MATRIX")
+          || "";
       }
 
       function extractBioAnnihilation(payload) {
