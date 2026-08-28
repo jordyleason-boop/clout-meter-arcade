@@ -662,8 +662,18 @@
       transform: translate(-50%, 0);
     }
 
-    [dir="rtl"] .sheet {
+    [dir="rtl"] .sheet,
+    body.rtl,
+    body.text-right {
       text-align: right;
+    }
+
+    #quick-start-guide-title,
+    #sponsor-reward-console-title,
+    #lock-btn-label {
+      overflow-wrap: break-word;
+      word-break: break-word;
+      white-space: normal;
     }
 
     input, button, textarea {
@@ -953,8 +963,8 @@
     </section>
 
     <div id="main-menu" class="w-full">
-    <section class="w-full p-4 mb-4 bg-zinc-950 border border-cyan-400 rounded-xl neon-box-blue text-left">
-      <h3 class="text-xs font-black neon-text-blue uppercase tracking-widest mb-2">🕹️ QUICK START GUIDE</h3>
+    <section class="w-full p-4 mb-4 bg-zinc-950 border border-cyan-400 rounded-xl neon-box-blue text-start">
+      <h3 id="quick-start-guide-title" data-i18n="startGuide" class="text-xs font-black neon-text-blue uppercase tracking-widest mb-2 break-words leading-tight">🕹️ QUICK START GUIDE</h3>
       <ul class="text-[10px] space-y-1.5 text-zinc-300 font-sans">
         <li>🔥 <strong class="text-white">1. Enter a Tag:</strong> Type any friend's @username or a description inside a game module.</li>
         <li>📊 <strong class="text-white">2. Run AI Scan:</strong> Consume 1 Arcade Coin to generate an brutal profile roast or itemized Aura receipt ledger.</li>
@@ -962,7 +972,7 @@
       </ul>
     </section>
     <section id="hub-grid" class="grid w-full grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
-      <button type="button" data-hub="profile_roaster" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-left md:min-h-[280px] md:p-6">
+      <button type="button" data-hub="profile_roaster" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-start md:min-h-[280px] md:p-6">
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-orange-500/20 blur-2xl transition group-hover:bg-orange-400/30"></div>
         <div class="relative">
           <p class="mb-8 text-4xl">🔥</p>
@@ -972,7 +982,7 @@
         </div>
       </button>
 
-      <button type="button" data-hub="aura_judge" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-left md:min-h-[280px] md:p-6">
+      <button type="button" data-hub="aura_judge" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-start md:min-h-[280px] md:p-6">
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/20 blur-2xl transition group-hover:bg-violet-400/30"></div>
         <div class="relative">
           <p class="mb-8 text-4xl">📊</p>
@@ -982,7 +992,7 @@
         </div>
       </button>
 
-      <button type="button" data-hub="revenge_leaderboard" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-left md:min-h-[280px] md:p-6">
+      <button type="button" data-hub="revenge_leaderboard" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-start md:min-h-[280px] md:p-6">
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-rose-500/20 blur-2xl transition group-hover:bg-rose-400/30"></div>
         <div class="relative">
           <p class="mb-8 text-4xl">⚔️</p>
@@ -1188,11 +1198,11 @@
       </button>
 
       <button id="lock-btn" type="button" onclick="lockTargetOrWatchAd()" class="lock-mode-free w-full rounded-2xl border border-fuchsia-300/70 bg-gradient-to-b from-fuchsia-400 via-pink-500 to-[#a80073] py-3.5 font-display text-base font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_8px_24px_rgba(255,0,170,0.42),inset_0_2px_0_rgba(255,255,255,0.35)] active:translate-y-[1px]">
-        <span id="lock-btn-label" class="text-xs font-black neon-text-blue">⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)</span>
+        <span id="lock-btn-label" class="text-xs font-black neon-text-blue break-words leading-tight">⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)</span>
       </button>
 
       <div id="adsgram-slot" data-ad-surface class="mt-4 rounded-2xl border border-dashed border-white/15 bg-black/25 p-4">
-        <p data-i18n="adsgramTitle" class="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">📺 SPONSOR REWARD CONSOLE</p>
+        <p id="sponsor-reward-console-title" data-i18n="adConsole" class="text-xs font-semibold uppercase tracking-[0.18em] text-white/40 break-words leading-tight">📺 SPONSOR REWARD CONSOLE</p>
         <p data-i18n="adsgramHint" class="mt-1 text-sm leading-relaxed text-white/55">Watch a short sponsor video to score 1 FREE Arcade Coin instantly after your 3 free starter tokens are consumed!</p>
         <button id="watch-ad-btn" type="button" onclick="triggerPlatformVideoAd()" class="mt-3 w-full rounded-xl border border-sky-400/30 bg-sky-400/10 py-2.5 text-sm font-semibold text-sky-200">
           <span data-i18n="watchAd">Watch Ad</span>
@@ -1349,6 +1359,26 @@
     (function () {
       "use strict";
 
+      var i18n = {
+        en: { startGuide: "🕹️ QUICK START GUIDE", adConsole: "📺 SPONSOR REWARD CONSOLE", scanCost: "⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)" },
+        hi: { startGuide: "🕹️ क्विक स्टार्ट गाइड", adConsole: "📺 स्पॉन्सर रिवॉर्ड कंसोल", scanCost: "⚡ AI क्लाउट स्कैन शुरू करें (लागत 1 कॉइन)" },
+        es: { startGuide: "🕹️ GUÍA DE INICIO RÁPIDO", adConsole: "📺 CONSOLA DE RECOMPENSA", scanCost: "⚡ INICIAR ESCANEO DE CLOUT IA (1 MONEDA)" },
+        ru: { startGuide: "🕹️ КРАТКОЕ РУКОВОДСТВО", adConsole: "📺 КОНСОЛЬ ВОЗНАГРАЖДЕНИЯ СВЯЗИ", scanCost: "⚡ ЗАПУСТИТЬ ИИ-СКАНИРОВАНИЕ (1 ЖЕТОН)" },
+        id: { startGuide: "🕹️ PANDUAN MULAI CEPAT", adConsole: "📺 KONSOL HADIAH SPONSOR", scanCost: "⚡ MULAI PEMINDAIAN CLOUT AI (1 KOIN)" },
+        fr: { startGuide: "🕹️ GUIDE DE DÉMARRAGE RAPIDE", adConsole: "📺 CONSOLE DE RÉCOMPENSE SPONSOR", scanCost: "⚡ LANCER LE SCAN DE CLOUT IA (1 CRÉDIT)" },
+        ar: { startGuide: "🕹️ دليل البدء السريع", adConsole: "📺 لوحة مكافآت الراعي", scanCost: "⚡ تشغيل فحص النفوذ بالذكاء الاصطناعي (التكلفة: عملة واحدة)" },
+        zh: { startGuide: "🕹️ 快速入门指南", adConsole: "📺 赞助奖励控制台", scanCost: "⚡ 启动 AI 影响力扫描 (消耗 1 个代币)" },
+        pt: { startGuide: "🕹️ GUIA DE INÍCIO RÁPIDO", adConsole: "📺 CONSOLE DE RECOMPENSA DO PATROCINADOR", scanCost: "⚡ INICIAR VALIDAÇÃO DE CLOUT IA (1 MOEDA)" },
+        tr: { startGuide: "🕹️ HIZLI BAŞLANGIÇ KILAVUZU", adConsole: "📺 SPONSOR ÖDÜL KONSOLU", scanCost: "⚡ AI CLOUT TARAMASINI BAŞLAT (1 JETON)" },
+        it: { startGuide: "🕹️ GUIDA RAPIDA", adConsole: "📺 CONSOLE PREMI SPONSOR", scanCost: "⚡ AVVIA SCANSIONE CLOUT IA (COSTO 1 MONETA)" },
+        de: { startGuide: "🕹️ SCHNELLSTARTANLEITUNG", adConsole: "📺 SPONSOR-BELOHNUNGSKONSOLE", scanCost: "⚡ KI-CLOUT-SCAN STARTEN (KOSTET 1 COIN)" },
+        uk: { startGuide: "🕹️ КОРОТКИЙ ПОСІБНИК", adConsole: "📺 КОНСОЛЬ НАГОРОД СПОНСОРА", scanCost: "⚡ ЗАПУСТИТИ ІІ-СКАНИРОВАНИЕ (1 ЖЕТОН)" },
+        uz: { startGuide: "🕹️ TEZKOR BOSHLASH YO'RIQNOMASI", adConsole: "📺 SPONSOR MUKOFOTI KONSOLI", scanCost: "⚡ AI CLOUT SCANNI BOSHLASH (QIYMATI 1 TANGA)" },
+        fa: { startGuide: "🕹️ راهنمای شروع سریع", adConsole: "📺 کنسول پاداش اسپانسر", scanCost: "⚡ شروع اسکن کلوت هوش مصنوعی (هزینه ۱ سکه)" }
+      };
+      var userLangCode = "en";
+      var currentLang = i18n.en;
+
       var I18N = {
         en: {
           insiderLabel: "Insider Gossip / Context (Optional)",
@@ -1386,6 +1416,9 @@
           inputPlaceholder: "Enter @username or text description",
           scanning: "Aura scan",
           lockTarget: "Lock Target",
+          startGuide: "🕹️ QUICK START GUIDE",
+          adConsole: "📺 SPONSOR REWARD CONSOLE",
+          scanCost: "⚡ LAUNCH AI CLOUT SCAN (COSTS 1 COIN)",
           adsgramTitle: "📺 SPONSOR REWARD CONSOLE",
           adsgramHint: "Watch a short sponsor video to score 1 FREE Arcade Coin instantly after your 3 free starter tokens are consumed!",
           watchAd: "Watch Ad",
@@ -1448,7 +1481,10 @@
           inputPlaceholder: "Introduce @usuario o una descripción",
           scanning: "Escaneo de aura",
           lockTarget: "Bloquear objetivo",
-          adsgramTitle: "📺 SPONSOR REWARD CONSOLE",
+          startGuide: "🕹️ GUÍA DE INICIO RÁPIDO",
+          adConsole: "📺 CONSOLA DE RECOMPENSA",
+          scanCost: "⚡ INICIAR ESCANEO DE CLOUT IA (1 MONEDA)",
+          adsgramTitle: "📺 CONSOLA DE RECOMPENSA",
           adsgramHint: "Mira un video de patrocinador para desbloquear un escaneo tras tus 3 tokens de por vida.",
           watchAd: "Ver anuncio",
           premiumTitle: "Desbloquea Clout Meter Premium",
@@ -1509,7 +1545,10 @@
           inputPlaceholder: "Введи @username или описание",
           scanning: "Скан ауры",
           lockTarget: "Захватить цель",
-          adsgramTitle: "📺 SPONSOR REWARD CONSOLE",
+          startGuide: "🕹️ КРАТКОЕ РУКОВОДСТВО",
+          adConsole: "📺 КОНСОЛЬ ВОЗНАГРАЖДЕНИЯ СВЯЗИ",
+          scanCost: "⚡ ЗАПУСТИТЬ ИИ-СКАНИРОВАНИЕ (1 ЖЕТОН)",
+          adsgramTitle: "📺 КОНСОЛЬ ВОЗНАГРАЖДЕНИЯ СВЯЗИ",
           adsgramHint: "Посмотри рекламу спонсора, чтобы открыть скан после 3 бесплатных токенов.",
           watchAd: "Смотреть рекламу",
           premiumTitle: "Открой Clout Meter Premium",
@@ -1570,7 +1609,10 @@
           inputPlaceholder: "Masukkan @username atau deskripsi",
           scanning: "Pindai aura",
           lockTarget: "Kunci Target",
-          adsgramTitle: "📺 SPONSOR REWARD CONSOLE",
+          startGuide: "🕹️ PANDUAN MULAI CEPAT",
+          adConsole: "📺 KONSOL HADIAH SPONSOR",
+          scanCost: "⚡ MULAI PEMINDAIAN CLOUT AI (1 KOIN)",
+          adsgramTitle: "📺 KONSOL HADIAH SPONSOR",
           adsgramHint: "Tonton video sponsor untuk membuka scan setelah 3 token seumur hidup.",
           watchAd: "Tonton Iklan",
           premiumTitle: "Buka Clout Meter Premium",
@@ -1631,7 +1673,10 @@
           inputPlaceholder: "أدخل @username أو وصفًا نصيًا",
           scanning: "مسح الهالة",
           lockTarget: "اقفل الهدف",
-          adsgramTitle: "📺 SPONSOR REWARD CONSOLE",
+          startGuide: "🕹️ دليل البدء السريع",
+          adConsole: "📺 لوحة مكافآت الراعي",
+          scanCost: "⚡ تشغيل فحص النفوذ بالذكاء الاصطناعي (التكلفة: عملة واحدة)",
+          adsgramTitle: "📺 لوحة مكافآت الراعي",
           adsgramHint: "شاهد فيديو الراعي لفتح فحص بعد الرموز المجانية الثلاثة مدى الحياة.",
           watchAd: "شاهد الإعلان",
           premiumTitle: "افتح Clout Meter بريميوم",
@@ -1869,23 +1914,73 @@
       }
 
       function t(key) {
+        if (currentLang && Object.prototype.hasOwnProperty.call(currentLang, key)) {
+          return currentLang[key];
+        }
+        if (i18n[state.lang] && Object.prototype.hasOwnProperty.call(i18n[state.lang], key)) {
+          return i18n[state.lang][key];
+        }
         var pack = I18N[state.lang] || I18N.en;
-        return pack[key] || I18N.en[key] || key;
+        if (pack && pack[key]) return pack[key];
+        return (I18N.en && I18N.en[key]) || (i18n.en && i18n.en[key]) || key;
+      }
+
+      function applyRtlLayout(langCode) {
+        var code = String(langCode || "en").toLowerCase();
+        var base = code.slice(0, 2);
+        if (code === "ar" || code === "fa" || base === "ar" || base === "fa") {
+          document.documentElement.dir = "rtl";
+          document.body.classList.add("rtl", "text-right");
+          document.body.classList.remove("text-left");
+        } else {
+          document.documentElement.dir = "ltr";
+          document.body.classList.remove("rtl", "text-right");
+        }
+      }
+
+      function applyCoreLocaleStrings() {
+        var pack = currentLang || i18n.en;
+        var guide = document.getElementById("quick-start-guide-title");
+        if (guide) guide.textContent = pack.startGuide;
+        var adConsoleEl = document.getElementById("sponsor-reward-console-title");
+        if (adConsoleEl) adConsoleEl.textContent = pack.adConsole;
+        var scanLabel = document.getElementById("lock-btn-label");
+        if (scanLabel && scanLabel.textContent !== WATCH_AD_RUN_LABEL) {
+          var mode = currentLockMode();
+          if (mode !== "ad") {
+            scanLabel.textContent = pack.scanCost;
+          }
+        }
+        LOCK_TARGET_LABEL = pack.scanCost;
+        LOCK_COMPUTE_LABEL = pack.scanCost;
       }
 
       function detectLanguage() {
         try {
-          var raw = window.Telegram &&
-            window.Telegram.WebApp &&
-            window.Telegram.WebApp.initDataUnsafe &&
-            window.Telegram.WebApp.initDataUnsafe.user &&
-            window.Telegram.WebApp.initDataUnsafe.user.language_code;
-          if (typeof raw !== "string" || !raw) return "en";
-          var code = raw.slice(0, 2).toLowerCase();
-          if (!/^[a-z]{2}$/.test(code)) return "en";
-          if (SUPPORTED_USER_LANGUAGES.indexOf(code) === -1) return "en";
-          return code;
+          userLangCode = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user && window.Telegram.WebApp.initDataUnsafe.user.language_code) ? String(window.Telegram.WebApp.initDataUnsafe.user.language_code).toLowerCase() : "en";
+          currentLang = i18n[userLangCode] || i18n[userLangCode.slice(0, 2)] || i18n.en;
+          if (userLangCode === "ar" || userLangCode === "fa" || userLangCode.slice(0, 2) === "ar" || userLangCode.slice(0, 2) === "fa") {
+            document.documentElement.dir = "rtl";
+            document.body.classList.add("rtl", "text-right");
+            document.body.classList.remove("text-left");
+          } else {
+            document.documentElement.dir = "ltr";
+            document.body.classList.remove("rtl", "text-right");
+          }
+          if (currentLang && currentLang.scanCost) {
+            LOCK_TARGET_LABEL = currentLang.scanCost;
+            LOCK_COMPUTE_LABEL = currentLang.scanCost;
+          }
+          if (i18n[userLangCode]) return userLangCode;
+          if (SUPPORTED_USER_LANGUAGES.indexOf(userLangCode.slice(0, 2)) !== -1) return userLangCode.slice(0, 2);
+          userLangCode = "en";
+          currentLang = i18n.en;
+          return "en";
         } catch (err) {
+          userLangCode = "en";
+          currentLang = i18n.en;
+          document.documentElement.dir = "ltr";
+          document.body.classList.remove("rtl", "text-right");
           return "en";
         }
       }
@@ -2220,7 +2315,7 @@
 
       function applyI18n() {
         document.documentElement.lang = state.lang;
-        document.documentElement.dir = (state.lang === "ar" || state.lang === "fa") ? "rtl" : "ltr";
+        applyRtlLayout(userLangCode || state.lang);
         document.querySelectorAll("[data-i18n]").forEach(function (el) {
           el.textContent = t(el.getAttribute("data-i18n"));
         });
@@ -2228,6 +2323,7 @@
           el.setAttribute("placeholder", t(el.getAttribute("data-i18n-placeholder")));
         });
         document.getElementById("adsgram-log").textContent = t("adReady");
+        applyCoreLocaleStrings();
         syncModalCopy();
         applyPremiumView();
       }
@@ -2334,21 +2430,21 @@
         if (!Number.isFinite(tokens)) tokens = 0;
         adButton.classList.remove("lock-mode-free", "lock-mode-ad", "lock-mode-premium");
         if (is_premium_user === true) {
-          adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue">' + LOCK_TARGET_LABEL + '</span>';
+          adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue break-words leading-tight">' + LOCK_TARGET_LABEL + '</span>';
           adButton.removeAttribute("disabled");
           adButton.disabled = false;
           adButton.classList.add("lock-mode-premium");
           return;
         }
         if (tokens > 0) {
-          adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue">' + LOCK_TARGET_LABEL + '</span>';
+          adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue break-words leading-tight">' + LOCK_TARGET_LABEL + '</span>';
           adButton.removeAttribute("disabled");
           adButton.disabled = false;
           adButton.classList.remove("opacity-60", "pointer-events-none");
           adButton.classList.add("lock-mode-free");
           return;
         }
-        adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-bold neon-text-blue">' + WATCH_AD_RUN_LABEL + '</span>';
+        adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-bold neon-text-blue break-words leading-tight">' + WATCH_AD_RUN_LABEL + '</span>';
         adButton.classList.add("lock-mode-ad");
       }
 
@@ -4064,12 +4160,12 @@
                 var adButton = document.getElementById("lock-btn");
                 if (currentTokens > 0) {
                   if (adButton) {
-                    adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue">' + LOCK_TARGET_LABEL + '</span>';
+                    adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-black neon-text-blue break-words leading-tight">' + LOCK_TARGET_LABEL + '</span>';
                     adButton.removeAttribute('disabled');
                   }
                 } else {
                   if (adButton) {
-                    adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-bold neon-text-blue">' + WATCH_AD_RUN_LABEL + '</span>';
+                    adButton.innerHTML = '<span id="lock-btn-label" class="text-xs font-bold neon-text-blue break-words leading-tight">' + WATCH_AD_RUN_LABEL + '</span>';
                   }
                 }
                 applyWalletScanButton(currentTokens);
@@ -5676,6 +5772,9 @@
             }
             // Keep native BackButton hidden until a mini-game is opened.
             hideTelegramBackButton();
+            state.lang = detectLanguage();
+            applyI18n();
+            applyWalletScanButton(state.credits_balance);
           } catch (err) {}
         });
       }
