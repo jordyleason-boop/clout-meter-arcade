@@ -60,6 +60,9 @@
           "brutal_oneliner": {
             "type": "string"
           },
+          "vibe_matrix": {
+            "type": "string"
+          },
           "final_verdict": {
             "type": "string"
           }

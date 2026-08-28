@@ -1096,17 +1096,17 @@
           </div>
           <div id="clout-metrics" class="grid w-full grid-cols-3 gap-2 px-1 text-center sm:px-4">
             <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-cyan-400/20 p-2">
-              <span class="whitespace-nowrap text-center font-display text-[10px] font-black uppercase tracking-tight text-cyan-200 xs:text-xs sm:text-sm">Charisma</span>
+              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center font-display text-cyan-200">Charisma</span>
               <span id="metric-charisma-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-cyan-100 xs:text-xs sm:text-sm">0/10</span>
               <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-charisma-bar" class="metric-fill metric-cyan rounded-full"></div></div>
             </div>
             <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-fuchsia-400/20 p-2">
-              <span class="whitespace-nowrap text-center font-display text-[10px] font-black uppercase tracking-tight text-fuchsia-200 xs:text-xs sm:text-sm">Cringe</span>
+              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center font-display text-fuchsia-200">Cringe</span>
               <span id="metric-cringe-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-fuchsia-100 xs:text-xs sm:text-sm">0/10</span>
               <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-cringe-bar" class="metric-fill metric-magenta rounded-full"></div></div>
             </div>
             <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-purple-400/20 p-2">
-              <span class="whitespace-nowrap text-center font-display text-[10px] font-black uppercase tracking-tight text-purple-200 xs:text-xs sm:text-sm">Threat</span>
+              <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center font-display text-purple-200">Threat</span>
               <span id="metric-threat-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-purple-100 xs:text-xs sm:text-sm">0/10</span>
               <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-threat-bar" class="metric-fill metric-purple rounded-full"></div></div>
             </div>
@@ -1115,6 +1115,10 @@
             <p id="brutal-oneliner-title" class="mb-1 font-display text-[10px] font-extrabold uppercase tracking-[0.22em] text-rose-300">Brutal oneliner</p>
             <p id="slot-brutal_oneliner" class="font-display text-base font-extrabold leading-snug tracking-wide text-rose-50 sm:text-lg"></p>
           </blockquote>
+          <article class="result-slot rounded-2xl p-4">
+            <h4 id="vibe-matrix-title" data-i18n="slotVibe" class="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold/80">VIBE MATRIX</h4>
+            <p id="slot-vibe_matrix" class="whitespace-pre-wrap text-sm leading-relaxed text-white/85"></p>
+          </article>
           <article class="result-slot rounded-2xl p-4">
             <h4 data-i18n="slotBio" class="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold/80">Bio annihilation</h4>
             <p id="slot-bio_annihilation" class="whitespace-pre-wrap text-sm leading-relaxed text-white/85"></p>
@@ -1453,6 +1457,7 @@
           adGate: "Free lifetime passes consumed! Initializing sponsor video ad...",
           slotPic: "Pic critique",
           slotBio: "Bio annihilation",
+          slotVibe: "VIBE MATRIX",
           slotVerdict: "Final verdict",
           slotScore: "Aura score",
           slotClout: "Clout rating",
@@ -1517,6 +1522,7 @@
           adGate: "¡Pases de por vida agotados! Iniciando video de patrocinador...",
           slotPic: "Crítica de foto",
           slotBio: "Aniquilación de bio",
+          slotVibe: "VIBE MATRIX",
           slotVerdict: "Veredicto final",
           slotScore: "Puntuación de aura",
           slotClout: "Rating de clout",
@@ -1581,6 +1587,7 @@
           adGate: "Бесплатные пропуски израсходованы! Запускаем рекламу спонсора...",
           slotPic: "Разбор фото",
           slotBio: "Уничтожение био",
+          slotVibe: "VIBE MATRIX",
           slotVerdict: "Итоговый вердикт",
           slotScore: "Очки ауры",
           slotClout: "Рейтинг клаута",
@@ -1645,6 +1652,7 @@
           adGate: "Tiket seumur hidup habis! Memulai video sponsor...",
           slotPic: "Kritik foto",
           slotBio: "Penghancuran bio",
+          slotVibe: "VIBE MATRIX",
           slotVerdict: "Vonis akhir",
           slotScore: "Skor aura",
           slotClout: "Rating clout",
@@ -1709,6 +1717,7 @@
           adGate: "نفدت التمريرات المجانية مدى الحياة! جاري تشغيل فيديو الراعي...",
           slotPic: "نقد الصورة",
           slotBio: "تدمير البايو",
+          slotVibe: "VIBE MATRIX",
           slotVerdict: "الحكم النهائي",
           slotScore: "درجة الهالة",
           slotClout: "تقييم الكلوت",
@@ -3746,6 +3755,7 @@
         result.player_username = payload.player_username || result.player_username || revengeContext.playerHandle;
         result.opponents = payload.opponents.slice();
         result.brutal_oneliner = payload.brutal_oneliner != null ? payload.brutal_oneliner : result.brutal_oneliner;
+        result.vibe_matrix = payload.vibe_matrix != null ? payload.vibe_matrix : result.vibe_matrix;
         result.bio_annihilation = payload.bio_annihilation != null ? payload.bio_annihilation : result.bio_annihilation;
         result.final_verdict = payload.final_verdict != null ? payload.final_verdict : result.final_verdict;
         payload.result = result;
@@ -4294,6 +4304,7 @@
               data.result.player_username = data.player_username;
               data.result.opponents = data.opponents.slice();
               if (data.brutal_oneliner != null) data.result.brutal_oneliner = data.brutal_oneliner;
+              if (data.vibe_matrix != null) data.result.vibe_matrix = data.vibe_matrix;
               if (data.bio_annihilation != null) data.result.bio_annihilation = data.bio_annihilation;
               if (data.final_verdict != null) data.result.final_verdict = data.final_verdict;
               data.module_type = "revenge_leaderboard";
@@ -4802,6 +4813,54 @@
         return buildOnelinerFallback(data, data.target);
       }
 
+      function parseLabeledRoastSection(raw, sectionName) {
+        var text = String(raw == null ? "" : raw);
+        if (!text || !sectionName) return "";
+        var header = String(sectionName).replace(/\s+/g, "\\s*");
+        var htmlRe = new RegExp("<h4[^>]*>\\s*" + header + "\\s*</h4>\\s*([\\s\\S]*?)(?=<h4\\b|$)", "i");
+        var htmlHit = text.match(htmlRe);
+        if (htmlHit && htmlHit[1]) {
+          return htmlHit[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        }
+        var blockRe = new RegExp(
+          "(?:^|\\n)\\s*(?:#+\\s*)?(?:" + header + ")\\s*:?\\s*\\n+([\\s\\S]*?)(?=\\n\\s*(?:Brutal oneliner|Vibe matrix|Bio annihilation|Final verdict)\\s*:?\\s*(?:\\n|$)|$)",
+          "i"
+        );
+        var blockHit = text.match(blockRe);
+        if (blockHit && blockHit[1]) return blockHit[1].trim();
+        return "";
+      }
+
+      function wrapVibeMatrixHeaders(root) {
+        var scope = root || document.getElementById("result-profile_roaster");
+        if (!scope) return;
+        var headings = scope.querySelectorAll("h4");
+        var neonClass = "mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold/80";
+        var i;
+        for (i = 0; i < headings.length; i += 1) {
+          var heading = headings[i];
+          var label = String(heading.textContent || "").replace(/\s+/g, " ").trim();
+          if (/^vibe\s*matrix$/i.test(label) || heading.id === "vibe-matrix-title") {
+            heading.className = neonClass;
+            heading.textContent = "VIBE MATRIX";
+          }
+        }
+      }
+
+      function extractVibeMatrix(payload) {
+        var data = unwrapModulePayload(payload);
+        var line = coercePayloadString(data.vibe_matrix);
+        if (line) return line;
+        line = coercePayloadString(data.vibeMatrix);
+        if (line) return line;
+        line = coercePayloadString(data.vibe);
+        if (line) return line;
+        var blob = coercePayloadString(data.roast) || coercePayloadString(data.brutal_oneliner) || "";
+        line = parseLabeledRoastSection(blob, "Vibe matrix");
+        if (line) return line;
+        return parseLabeledRoastSection(blob, "VIBE MATRIX");
+      }
+
       function extractBioAnnihilation(payload) {
         var data = unwrapModulePayload(payload);
         var paragraph = coercePayloadString(data.bio_annihilation);
@@ -4999,10 +5058,21 @@
         return paragraph;
       }
 
+      function injectVibeMatrix(payload) {
+        var vibeEl = document.getElementById("slot-vibe_matrix");
+        var line = extractVibeMatrix(payload);
+        if (vibeEl) {
+          vibeEl.textContent = line;
+        }
+        wrapVibeMatrixHeaders(document.getElementById("result-profile_roaster"));
+        return line;
+      }
+
       function paintProfileRoaster(payload, options) {
         options = options || {};
         renderCloutMetrics(payload);
         injectBrutalOneliner(payload);
+        injectVibeMatrix(payload);
         injectBioAnnihilation(payload);
         var verdict = extractFinalVerdict(payload);
         var verdictEl = document.getElementById("slot-final_verdict");
@@ -5029,10 +5099,12 @@
           var roastHandle = normalizeHandle(roastPayload.target || payload.target || state.currentTarget || state.pendingTarget);
           syncGoldPassBadges(roastHandle);
           state.pendingRoastPayload = roastPayload;
-          var roastReady = afterShareFieldsReady(3, function () {
+          var roastReady = afterShareFieldsReady(4, function () {
             captureLiveShareState(moduleType);
           });
           injectBrutalOneliner(roastPayload);
+          roastReady();
+          injectVibeMatrix(roastPayload);
           roastReady();
           injectBioAnnihilation(roastPayload);
           roastReady();
@@ -6116,6 +6188,7 @@
           target: target,
           bio_annihilation: readSlotText("slot-bio_annihilation") || String(saved.bio_annihilation || ""),
           brutal_oneliner: readSlotText("slot-brutal_oneliner") || String(saved.brutal_oneliner || ""),
+          vibe_matrix: readSlotText("slot-vibe_matrix") || String(saved.vibe_matrix || ""),
           final_verdict: readSlotText("slot-final_verdict") || String(saved.final_verdict || ""),
           aura_score: readSlotText("slot-score") || (saved.score == null ? "" : String(saved.score)),
           clout_rating: readSlotText("slot-clout_rating") || String(saved.clout_rating || ""),

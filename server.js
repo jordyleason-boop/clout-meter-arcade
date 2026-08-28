@@ -649,6 +649,9 @@ app.post("/api/process-action", async (req, res) => {
       brutal_oneliner: structured.data && structured.data.brutal_oneliner != null
         ? structured.data.brutal_oneliner
         : "",
+      vibe_matrix: structured.data && structured.data.vibe_matrix != null
+        ? structured.data.vibe_matrix
+        : "",
       clout_metrics: structured.data && structured.data.clout_metrics
         ? structured.data.clout_metrics
         : {
@@ -3688,14 +3691,17 @@ function compileUserPrompt(moduleType, target, language, gossip, targetUsername,
       ? `\nREQUIRED INSIDER GOSSIP (cite concrete details from this in every field):\n${gossip}\n`
       : "\nInsider gossip: none\n";
     const profileBlock = `\nUsername: ${targetUsername ? `@${targetUsername}` : target}\nFirst name: ${targetFirstName || "unknown"}`;
-    const localeLine = `\nuser_language=${safeCode}\nCRITICAL LOCALIZATION REQUIREMENT: Write bio_annihilation, brutal_oneliner, and final_verdict fluently and completely in ${safeName}. Keep JSON keys clout_metrics, charisma_level, cringe_factor, and threat_multiplier in English characters.`;
+    const localeLine = `\nuser_language=${safeCode}\nCRITICAL LOCALIZATION REQUIREMENT: Write bio_annihilation, brutal_oneliner, vibe_matrix, and final_verdict fluently and completely in ${safeName}. Keep JSON keys clout_metrics, charisma_level, cringe_factor, and threat_multiplier in English characters.`;
     if (moduleType === "profile_roaster") {
       const username = String(targetUsername || target || "unknown").replace(/^@+/, "").trim() || "unknown";
       const prompt = `Write a savage, hilarious cyber arcade comedy roast for the Telegram user "@${username}". 
-  Your output MUST follow this exact 3-part layout structure with zero deviations:
+  Your output MUST follow this exact 4-part layout structure with zero deviations:
   
   Brutal oneliner
   [Insert a single-sentence punchy roast here]
+  
+  Vibe matrix
+  [Insert a short, funny 1-sentence breakdown of their core digital frequency or energy here]
   
   Bio annihilation
   [Insert a 2-3 sentence roast about their lack of bio or digital presence here]
@@ -3704,11 +3710,10 @@ function compileUserPrompt(moduleType, target, language, gossip, targetUsername,
   [Insert a sharp, single-sentence final closing judgment sentence here]
   
   CRITICAL RULES:
-  - Maintain absolute perfect English grammar and vocabulary layout.
-  - End your response IMMEDIATELY after your final sentence in the Final verdict block. 
-  - Strictly DO NOT repeat words, loops, phrases, or fragment sentences at the end of the text.
-  - Stop generating text the moment your thought loop is complete.`;
-      return `${gossipBlock}module_type=${moduleType}${localeLine}\n${prompt}\nMap Brutal oneliner, Bio annihilation, and Final verdict into JSON keys brutal_oneliner, bio_annihilation, and final_verdict. Also return clout_metrics with charisma_level, cringe_factor, and threat_multiplier as numbers from 0 to 10.\nTarget: ${target}${profileBlock}\nBuild every field around the text handle and the insider gossip above. Mention the gossip facts explicitly.`;
+  - Maintain absolute perfect English grammar layout.
+  - End your response IMMEDIATELY after your final punctuation mark in the Final verdict block.
+  - Absolutely do not repeat words, trailing sentence loops, or duplicate phrases at the very end of your response text.`;
+      return `${gossipBlock}module_type=${moduleType}${localeLine}\n${prompt}\nMap Brutal oneliner, Vibe matrix, Bio annihilation, and Final verdict into JSON keys brutal_oneliner, vibe_matrix, bio_annihilation, and final_verdict. Also return clout_metrics with charisma_level, cringe_factor, and threat_multiplier as numbers from 0 to 10.\nTarget: ${target}${profileBlock}\nBuild every field around the text handle and the insider gossip above. Mention the gossip facts explicitly.`;
     }
     if (moduleType === "aura_judge") {
       return `${gossipBlock}module_type=${moduleType}${localeLine}\nCalculate the official aura receipt and return score, clout_rating, perks_unlocked, and penalties_applied.\nTarget: ${target}${profileBlock}\nLet the insider gossip above drive the score, perks, and penalties. Mention those facts explicitly. Write clout_rating, perks_unlocked, and penalties_applied in ${safeName}. Keep JSON keys in English.`;
@@ -3881,6 +3886,9 @@ function parseAndValidateModuleJson(text, moduleConfig, target, targetId) {
   if (Object.prototype.hasOwnProperty.call(aliased, "scoreboard") && aliased.scoreboard != null) {
     data.scoreboard = aliased.scoreboard;
   }
+  if (Object.prototype.hasOwnProperty.call(aliased, "vibe_matrix") && aliased.vibe_matrix != null) {
+    data.vibe_matrix = aliased.vibe_matrix;
+  }
 
   if (Object.prototype.hasOwnProperty.call(data, "clout_metrics") || moduleConfig.module_id === "profile_roaster" || moduleConfig.module_id === "revenge_leaderboard") {
     const metrics = normalizeCloutMetrics(data.clout_metrics);
@@ -3912,6 +3920,9 @@ function parseAndValidateModuleJson(text, moduleConfig, target, targetId) {
 
   if (typeof data.brutal_oneliner === "string") {
     data.brutal_oneliner = cleanRepeatingAiTail(data.brutal_oneliner);
+  }
+  if (typeof data.vibe_matrix === "string") {
+    data.vibe_matrix = cleanRepeatingAiTail(data.vibe_matrix);
   }
   if (typeof data.bio_annihilation === "string") {
     data.bio_annihilation = cleanRepeatingAiTail(data.bio_annihilation);
@@ -3977,6 +3988,13 @@ function applyModuleFieldAliases(parsed) {
       "brutal_one_liner",
       "one_liner",
       "oneliner"
+    ], 0);
+  }
+  if (out.vibe_matrix == null) {
+    out.vibe_matrix = findFieldDeep(source, [
+      "vibe_matrix",
+      "vibeMatrix",
+      "vibe"
     ], 0);
   }
   if (out.bio_annihilation == null) {
