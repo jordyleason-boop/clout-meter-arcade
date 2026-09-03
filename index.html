@@ -6449,7 +6449,8 @@
       var MONETAG_REWARD_ZONE_ID = 3476189;
 
       function resolveMonetagRewardedInvoker() {
-        if (typeof window.show_11716521 === "function") return window.show_11716521;
+        var sdkShow = window["show_" + String(MONETAG_SDK_ZONE_ID)];
+        if (typeof sdkShow === "function") return sdkShow;
         if (typeof window.showRewardedAd === "function") return window.showRewardedAd;
         return null;
       }
