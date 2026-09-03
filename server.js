@@ -695,10 +695,19 @@ app.post("/api/process-action", async (req, res) => {
       return;
     }
 
+    let finalRoast = String(completion.text || "");
+    finalRoast = finalRoast.trim();
+    if (parsedBody.module_type === "profile_roaster") {
+      finalRoast = trimFinalVerdictSection(finalRoast);
+      if (structured.data && typeof structured.data.final_verdict === "string") {
+        structured.data.final_verdict = trimIsolatedVerdictSentence(structured.data.final_verdict);
+      }
+    }
+
     res.status(200).json({
       ok: true,
       success: true,
-      roast: String(completion.text || "").trim(),
+      roast: finalRoast.trim(),
       module_type: parsedBody.module_type,
       target: parsedBody.module_type === "revenge_leaderboard"
         ? (parsedBody.player_username || parsedBody.target)
@@ -4371,7 +4380,11 @@ function parseAndValidateModuleJson(text, moduleConfig, target, targetId) {
     data.bio_annihilation = cleanRepeatingAiTail(data.bio_annihilation);
   }
   if (typeof data.final_verdict === "string") {
-    data.final_verdict = cleanRepeatingAiTail(data.final_verdict);
+    if (moduleConfig.module_id === "profile_roaster") {
+      data.final_verdict = trimIsolatedVerdictSentence(data.final_verdict);
+    } else {
+      data.final_verdict = cleanRepeatingAiTail(data.final_verdict);
+    }
   }
 
   if (moduleConfig.module_id === "aura_judge") {
@@ -4698,6 +4711,37 @@ function extractJsonObject(text) {
   return null;
 }
 
+function trimFinalVerdictSection(raw) {
+  let finalRoast = raw == null ? "" : String(raw);
+  finalRoast = finalRoast.trim();
+
+  // Find the 'Final verdict' section boundary
+  const verdictIndex = finalRoast.toLowerCase().lastIndexOf("final verdict");
+  if (verdictIndex !== -1) {
+    const headerOffset = finalRoast.substring(verdictIndex).indexOf("\n");
+    if (headerOffset !== -1) {
+      const searchStartIndex = verdictIndex + headerOffset;
+      const verdictBody = finalRoast.substring(searchStartIndex);
+
+      // Locate the VERY FIRST proper end-of-sentence period followed by a space, newline, or the end of the text
+      const sentenceEndMatch = verdictBody.match(/\.\s|\.\n|\.$/);
+      if (sentenceEndMatch && sentenceEndMatch.index !== undefined) {
+        // Cut the string off cleanly immediately after that first absolute period mark
+        const cleanVerdictBody = verdictBody.substring(0, sentenceEndMatch.index + 1);
+        finalRoast = finalRoast.substring(0, searchStartIndex) + cleanVerdictBody;
+      }
+    }
+  }
+
+  return finalRoast.trim();
+}
+
+function trimIsolatedVerdictSentence(raw) {
+  const body = raw == null ? "" : String(raw).trim();
+  if (!body) return "";
+  return trimFinalVerdictSection("Final verdict\n" + body).replace(/^final verdict\s*/i, "").trim();
+}
+
 function cleanRepeatingAiTail(raw) {
   let finalRoast = raw == null ? "" : String(raw);
   finalRoast = finalRoast.trim();
@@ -4790,9 +4834,8 @@ async function requestDeepSeek({ model, systemPrompt, userPrompt, gossip, respon
     }
     finalRoast = String(finalRoast || "").trim();
 
-    // Advanced tail repetition clean check
     const originalRoast = finalRoast;
-    finalRoast = cleanRepeatingAiTail(finalRoast);
+    finalRoast = trimFinalVerdictSection(finalRoast);
     if (originalRoast && extractJsonObject(originalRoast) && !extractJsonObject(finalRoast)) {
       finalRoast = originalRoast;
     }
