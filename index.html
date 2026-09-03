@@ -10,7 +10,7 @@
   <meta name="color-scheme" content="dark" />
   <title>Clout Meter</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://alwingulla.com/88/tag.min.js" data-zone="89324" data-sdk="show_89324" async data-pwt="tg" data-cfasync="false"></script>
+  <script src="//libtl.com/sdk.js" data-zone="11716521" data-sdk="show_11716521"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -6445,18 +6445,19 @@
       }
       window.lockTargetOrWatchAd = lockTargetOrWatchAd;
 
-      var MONETAG_ZONE_ID = 89324;
+      var MONETAG_SDK_ZONE_ID = 11716521;
+      var MONETAG_REWARD_ZONE_ID = 3476189;
 
       function resolveMonetagRewardedInvoker() {
-        if (typeof window.show_89324 === "function") return window.show_89324;
+        if (typeof window.show_11716521 === "function") return window.show_11716521;
         if (typeof window.showRewardedAd === "function") return window.showRewardedAd;
         return null;
       }
 
       function triggerPlatformVideoAd() {
-        var showAd = resolveMonetagRewardedInvoker();
-        if (typeof showAd !== "function") {
-          alert("Monetag stream initializing... please tap again in a brief second!");
+        var showRewardedAd = resolveMonetagRewardedInvoker();
+        if (typeof showRewardedAd !== "function") {
+          alert("Monetag stream connecting... please tap again in a brief second!");
           return;
         }
 
@@ -6473,8 +6474,8 @@
         }
 
         try {
-          var result = showAd({
-            zoneId: MONETAG_ZONE_ID,
+          var result = showRewardedAd({
+            zoneId: MONETAG_REWARD_ZONE_ID,
             type: "end",
             ymid: String(resolveCurrentUserId() || ""),
             onReward: function () {
@@ -6484,18 +6485,18 @@
               console.log("Monetag viewport overlay frame closed by user.");
             },
             onError: function (err) {
-              console.error("Monetag ad stream error execution trap:", err);
+              console.error("Monetag tracking exception:", err);
             }
           });
           if (result && typeof result.then === "function") {
             result.then(function () {
               grantMonetagReward();
             }).catch(function (err) {
-              console.error("Monetag ad stream error execution trap:", err);
+              console.error("Monetag tracking exception:", err);
             });
           }
         } catch (err) {
-          console.error("Monetag ad stream error execution trap:", err);
+          console.error("Monetag tracking exception:", err);
         }
       }
       window.triggerPlatformVideoAd = triggerPlatformVideoAd;
