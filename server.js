@@ -278,6 +278,9 @@ app.post("/api/process-action", async (req, res) => {
   let leaderboardRows = [];
   let activeTargetId = "";
   let activeTargetNumericId = 0;
+  let actingTelegramId = 0;
+  let actingHandle = "";
+  let scanCreditCharged = false;
 
   try {
     leaderboardRows = [];
@@ -340,8 +343,9 @@ app.post("/api/process-action", async (req, res) => {
     );
 
     let sessionLedger = null;
-    let actingTelegramId = 0;
-    let actingHandle = "";
+    actingTelegramId = 0;
+    actingHandle = "";
+    scanCreditCharged = false;
     try {
       if (verified.ok && verified.user && verified.user.id != null) {
         actingTelegramId = Number(verified.user.id);
@@ -450,6 +454,7 @@ app.post("/api/process-action", async (req, res) => {
         return;
       }
       sessionLedger = deducted.user || sessionLedger;
+      scanCreditCharged = true;
     }
 
     // Revenge Leaderboard stays local (no DeepSeek/OpenRouter) after the shared 1-credit deduct.
@@ -594,7 +599,15 @@ app.post("/api/process-action", async (req, res) => {
         );
       } catch (_fallbackErr) {
         leaderboardRows = [];
-        res.status(500).json({ ok: false, error: "Internal server error" });
+        if (scanCreditCharged) {
+          const refunded = await refundFailedScanCredit(actingTelegramId, actingHandle);
+          if (refunded && refunded.ok && refunded.user) sessionLedger = refunded.user;
+        }
+        res.status(500).json({
+          ok: false,
+          error: "Internal server error",
+          user: sessionLedger
+        });
         return;
       }
     }
@@ -606,14 +619,22 @@ app.post("/api/process-action", async (req, res) => {
       gossip: parsedBody.gossip,
       response_format: { type: "json_object" },
       temperature: 0.95,
-      frequency_penalty: 1.2,
-      presence_penalty: 1.0,
+      frequency_penalty: 0.65,
+      presence_penalty: 0.55,
       seed: Math.floor(Math.random() * 100000)
     });
 
     if (!completion.ok) {
       leaderboardRows = [];
-      res.status(502).json({ ok: false, error: completion.error || "Upstream model request failed" });
+      if (scanCreditCharged) {
+        const refunded = await refundFailedScanCredit(actingTelegramId, actingHandle);
+        if (refunded && refunded.ok && refunded.user) sessionLedger = refunded.user;
+      }
+      res.status(502).json({
+        ok: false,
+        error: completion.error || "Upstream model request failed",
+        user: sessionLedger
+      });
       return;
     }
 
@@ -715,7 +736,15 @@ app.post("/api/process-action", async (req, res) => {
     );
     if (!structured.ok) {
       leaderboardRows = [];
-      res.status(502).json({ ok: false, error: "Model returned an invalid module payload" });
+      if (scanCreditCharged) {
+        const refunded = await refundFailedScanCredit(actingTelegramId, actingHandle);
+        if (refunded && refunded.ok && refunded.user) sessionLedger = refunded.user;
+      }
+      res.status(502).json({
+        ok: false,
+        error: "Model returned an invalid module payload",
+        user: sessionLedger
+      });
       return;
     }
 
@@ -818,6 +847,11 @@ app.post("/api/process-action", async (req, res) => {
     leaderboardRows = [];
     activeTargetId = "";
     activeTargetNumericId = 0;
+    if (scanCreditCharged) {
+      try {
+        await refundFailedScanCredit(actingTelegramId, actingHandle);
+      } catch (_refundErr) {}
+    }
     res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });
@@ -1507,9 +1541,11 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ ok: false, error: "Internal server error" });
 });
 
-app.listen(PORT, () => {
-  console.log(`${GLOBAL_CONFIG.engine_name || "Clout Meter"} API listening on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`${GLOBAL_CONFIG.engine_name || "Clout Meter"} API listening on port ${PORT}`);
+  });
+}
 
 function loadEngineConfig() {
   const configPath = path.join(__dirname, "config.json");
@@ -2390,6 +2426,50 @@ async function addArcadeCredits(telegramId, handle, creditsToAdd) {
     };
   } catch (_err) {
     return { ok: false, error: "credits_balance grant failed" };
+  }
+}
+
+async function refundFailedScanCredit(telegramId, handle) {
+  if (!supabase) {
+    return { ok: false, skipped: true, error: "Supabase is not configured" };
+  }
+  try {
+    const numericId = normalizeArcadeTelegramId(telegramId);
+    if (!Number.isFinite(numericId) || numericId <= 0) {
+      return { ok: false, error: "Invalid telegram_id" };
+    }
+    const provisioned = await provisionArcadeUserAccount(numericId, handle || "");
+    if (!provisioned.ok || !provisioned.user) {
+      return { ok: false, error: provisioned.error || "Unable to provision users row before credit refund" };
+    }
+    const currentBalance = Number(
+      provisioned.user && provisioned.user.credits_balance != null
+        ? provisioned.user.credits_balance
+        : 0
+    );
+    const liveBalance = Number.isFinite(currentBalance) ? Math.max(0, Math.floor(currentBalance)) : 0;
+    const nextBalance = liveBalance + ARCADE_CREDIT_COST_PER_AI_SCAN;
+    const { data, error } = await supabase
+      .from("users")
+      .update({ credits_balance: nextBalance })
+      .eq("telegram_id", numericId)
+      .select("telegram_id, username, credits_balance")
+      .maybeSingle();
+    if (error) {
+      return { ok: false, error: error.message || "credits_balance refund failed" };
+    }
+    const serialized = serializeUserLedger(data) || provisioned.user;
+    if (serialized) {
+      serialized.credits_balance = nextBalance;
+    }
+    return {
+      ok: true,
+      credits_added: ARCADE_CREDIT_COST_PER_AI_SCAN,
+      credits_balance: nextBalance,
+      user: serialized
+    };
+  } catch (_err) {
+    return { ok: false, error: "credits_balance refund failed" };
   }
 }
 
@@ -4190,8 +4270,7 @@ function compileSystemPrompt(moduleConfig, languageCode, languageName, gossip, t
             "You must write this entire roast using the persona of a: " + String(options.randomPersona || "Sarcastic, hyperbolic underground stand-up comedian leveraging wild over-exaggeration."),
             "VARIETY_TOKEN: " + String(options.varietyToken || Date.now()),
             "DO NOT reuse clichés, templates, phrases, or specific jokes from previous runs (such as referencing wet socks, pharmacists, sneezes, or Welsh car accidents).",
-            "At the very absolute end of your response, you MUST append a raw metrics score row using this exact tag format layout with random integers between 1 and 10 based on your roast content:",
-            "METRICS_MATRIX[CHARISMA: X, CRINGE: Y, THREAT: Z]"
+            "Put integer scores from 1 to 10 in clout_metrics.charisma_level, clout_metrics.cringe_factor, and clout_metrics.threat_multiplier. Do not append extra text after the JSON object."
           ].join("\n")
         : ""
     ].filter(Boolean).join("\n\n");
@@ -4225,38 +4304,29 @@ function compileUserPrompt(moduleType, target, language, gossip, targetUsername,
       const randomPersona = String(options.randomPersona || "Sarcastic, hyperbolic underground stand-up comedian leveraging wild over-exaggeration.");
       const varietyToken = String(options.varietyToken || Date.now());
       const context = String(gossip || "").trim() || "No bio, entirely anonymous data footprint";
-      const prompt = `Write an absolutely unique, custom, savage cyber arcade comedy roast for the Telegram user "@${username}". 
-  Contextual clues provided: "${context}".
-  
-  COMEDIC VOICE FOR THIS SPECIFIC RUN: 
-  You must write this entire roast using the persona of a: ${randomPersona}
-  
-  VARIETY_TOKEN: ${varietyToken}
-  
-  CRITICAL RULES TO FORCE VARIETY:
-  - DO NOT reuse clichés, templates, phrases, or specific jokes from previous runs (such as referencing wet socks, pharmacists,sneezes, or Welsh car accidents).
-  - Every single roast must be custom-tailored to the specific characters in their username or context.
-  - Maintain absolute perfect English grammar layout.
-  - End your response IMMEDIATELY after your final punctuation mark in the Final verdict block.
-  - Absolutely do not repeat words, trailing sentence loops, or duplicate phrases at the very end of your response text.
-  
-  Your output MUST follow this exact 4-part layout structure with zero deviations:
-  
-  Brutal oneliner
-  [Insert a single-sentence punchy roast here]
-  
-  Vibe matrix
-  [Insert a short, funny 1-sentence breakdown of their core digital frequency or energy here]
-  
-  Bio annihilation
-  [Insert a 2-3 sentence roast about their lack of bio or digital presence here]
-  
-  Final verdict
-  [Insert a sharp, single-sentence final closing judgment sentence here]
-  
-  At the very absolute end of your response, you MUST append a raw metrics score row using this exact tag format layout with random integers between 1 and 10 based on your roast content:
-  METRICS_MATRIX[CHARISMA: X, CRINGE: Y, THREAT: Z]`;
-      return `${gossipBlock}module_type=${moduleType}${localeLine}\n${prompt}\nMap Brutal oneliner, Vibe matrix, Bio annihilation, and Final verdict into JSON keys brutal_oneliner, vibe_matrix, bio_annihilation, and final_verdict. Also return clout_metrics with charisma_level, cringe_factor, and threat_multiplier as numbers from 1 to 10.\nTarget: ${target}${profileBlock}\nBuild every field around the text handle and the insider gossip above. Mention the gossip facts explicitly.`;
+      const prompt = `Write an absolutely unique, custom, savage cyber arcade comedy roast for the Telegram user "@${username}".
+Contextual clues provided: "${context}".
+
+COMEDIC VOICE FOR THIS SPECIFIC RUN:
+You must write this entire roast using the persona of a: ${randomPersona}
+
+VARIETY_TOKEN: ${varietyToken}
+
+CRITICAL RULES TO FORCE VARIETY:
+- DO NOT reuse clichés, templates, phrases, or specific jokes from previous runs (such as referencing wet socks, pharmacists, sneezes, or Welsh car accidents).
+- Every single roast must be custom-tailored to the specific characters in their username or context.
+- Maintain absolute perfect English grammar.
+- final_verdict must be exactly one sentence. Do not repeat words, trailing sentence loops, or duplicate phrases.
+
+Return ONLY a JSON object with these keys and no labeled headings:
+- brutal_oneliner: a single-sentence punchy roast
+- vibe_matrix: a short, funny 1-sentence breakdown of their core digital frequency or energy
+- bio_annihilation: a 2-3 sentence roast about their bio or digital presence
+- final_verdict: a sharp, single-sentence final closing judgment
+- clout_metrics: an object with charisma_level, cringe_factor, and threat_multiplier as integers from 1 to 10
+
+Do not wrap the JSON in markdown. Do not add any text before or after the JSON object.`;
+      return `${gossipBlock}module_type=${moduleType}${localeLine}\n${prompt}\nTarget: ${target}${profileBlock}\nBuild every field around the text handle and the insider gossip above. Mention the gossip facts explicitly.`;
     }
     if (moduleType === "aura_judge") {
       return `${gossipBlock}module_type=${moduleType}${localeLine}\nCalculate the official aura receipt and return score, clout_rating, perks_unlocked, and penalties_applied.\nTarget: ${target}${profileBlock}\nLet the insider gossip above drive the score, perks, and penalties. Mention those facts explicitly. Write clout_rating, perks_unlocked, and penalties_applied in ${safeName}. Keep JSON keys in English.`;
@@ -4407,8 +4477,78 @@ function normalizeAuraJudgePayload(data) {
   }
 }
 
+function salvageLabeledRoastPayload(text) {
+  const raw = String(text == null ? "" : text).replace(/\r\n/g, "\n");
+  if (!raw.trim()) return null;
+
+  const headers = [
+    { key: "brutal_oneliner", labels: ["brutal oneliner", "brutal_oneliner", "brutal one liner"] },
+    { key: "vibe_matrix", labels: ["vibe matrix", "vibe_matrix"] },
+    { key: "bio_annihilation", labels: ["bio annihilation", "bio_annihilation"] },
+    { key: "final_verdict", labels: ["final verdict", "final_verdict"] }
+  ];
+
+  const found = [];
+  for (let i = 0; i < headers.length; i += 1) {
+    const labelAlt = headers[i].labels
+      .map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join("|");
+    const re = new RegExp(
+      "(?:^|\\n)\\s*(?:[#>*_\\-🔥💥⚡]+\\s*)*(?:" + labelAlt + ")\\s*[:\\-–]*\\s*",
+      "i"
+    );
+    const match = raw.match(re);
+    if (match && match.index != null) {
+      found.push({
+        key: headers[i].key,
+        headerStart: match.index,
+        bodyStart: match.index + match[0].length
+      });
+    }
+  }
+  if (!found.length) return null;
+  found.sort((a, b) => a.bodyStart - b.bodyStart);
+
+  const out = {};
+  for (let i = 0; i < found.length; i += 1) {
+    const end = i + 1 < found.length ? found[i + 1].headerStart : raw.length;
+    let body = raw.slice(found[i].bodyStart, end);
+    body = body.replace(/METRICS_MATRIX\s*\[[^\]]*\]/ig, "");
+    body = body.replace(/```(?:json)?/g, "");
+    body = body.replace(/^[{\[,]+/, "").replace(/[}\]]+,?$/, "");
+    body = body.replace(/^["']|["']$/g, "").replace(/\\n/g, "\n").trim();
+    if (body) out[found[i].key] = body;
+  }
+
+  const metricsMatch = raw.match(/METRICS_MATRIX\[CHARISMA:\s*(\d+),\s*CRINGE:\s*(\d+),\s*THREAT:\s*(\d+)\]/i);
+  if (metricsMatch) {
+    out.clout_metrics = {
+      charisma_level: Number(metricsMatch[1]),
+      cringe_factor: Number(metricsMatch[2]),
+      threat_multiplier: Number(metricsMatch[3])
+    };
+  }
+
+  if (!out.brutal_oneliner && !out.vibe_matrix && !out.bio_annihilation && !out.final_verdict) {
+    return null;
+  }
+  return out;
+}
+
 function parseAndValidateModuleJson(text, moduleConfig, target, targetId) {
-  const parsed = extractJsonObject(text);
+  let parsed = extractJsonObject(text);
+  const moduleId = moduleConfig && moduleConfig.module_id;
+  if (parsed && moduleId === "profile_roaster") {
+    const preview = applyModuleFieldAliases(parsed);
+    const missingCore = !preview.brutal_oneliner && !preview.vibe_matrix && !preview.bio_annihilation && !preview.final_verdict;
+    if (missingCore) {
+      const salvaged = salvageLabeledRoastPayload(text);
+      if (salvaged) parsed = Object.assign({}, parsed, salvaged);
+    }
+  }
+  if (!parsed && (moduleId === "profile_roaster" || moduleId === "revenge_leaderboard")) {
+    parsed = salvageLabeledRoastPayload(text);
+  }
   if (!parsed) return { ok: false };
 
   const aliased = applyModuleFieldAliases(parsed);
@@ -4514,6 +4654,30 @@ function parseAndValidateModuleJson(text, moduleConfig, target, targetId) {
     }
   }
 
+  if (moduleConfig.module_id === "profile_roaster") {
+    const roastKeys = ["brutal_oneliner", "vibe_matrix", "bio_annihilation", "final_verdict"];
+    const hasRoastText = roastKeys.some(function (key) {
+      return typeof data[key] === "string" && String(data[key]).trim();
+    });
+    if (!hasRoastText) {
+      const salvaged = salvageLabeledRoastPayload(text);
+      if (salvaged) {
+        roastKeys.forEach(function (key) {
+          if (salvaged[key] && !(typeof data[key] === "string" && String(data[key]).trim())) {
+            data[key] = salvaged[key];
+          }
+        });
+        if (salvaged.clout_metrics && !data.clout_metrics) {
+          data.clout_metrics = salvaged.clout_metrics;
+        }
+      }
+    }
+    const stillMissing = roastKeys.every(function (key) {
+      return typeof data[key] !== "string" || !String(data[key]).trim();
+    });
+    if (stillMissing) return { ok: false };
+  }
+
   const hasAnyField = Object.keys(data).length > 0;
   if (!hasAnyField) return { ok: false };
 
@@ -4526,6 +4690,10 @@ function applyModuleFieldAliases(parsed) {
   const keys = Object.keys(source);
   for (let i = 0; i < keys.length; i += 1) {
     out[keys[i]] = source[keys[i]];
+    const normalized = String(keys[i] || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (normalized && out[normalized] == null && source[keys[i]] != null) {
+      out[normalized] = source[keys[i]];
+    }
   }
 
   if (out.brutal_oneliner == null) {
@@ -4944,6 +5112,10 @@ function fenceIsolatedVerdict(raw) {
 function trimFinalVerdictSection(raw) {
   let finalRoast = raw == null ? "" : String(raw);
   finalRoast = finalRoast.trim();
+  if (!finalRoast) return finalRoast;
+  if (finalRoast.charAt(0) === "{" || extractJsonObject(finalRoast)) {
+    return finalRoast;
+  }
 
   const verdictHeaderMatch = finalRoast.match(/final verdict/i);
   if (verdictHeaderMatch && verdictHeaderMatch.index !== undefined) {
@@ -5019,10 +5191,10 @@ async function requestDeepSeek({ model, systemPrompt, userPrompt, gossip, respon
   const payload = {
     model: model || "deepseek-chat",
     messages,
-    max_tokens: 350,
+    max_tokens: 700,
     temperature: Number.isFinite(Number(temperature)) ? Number(temperature) : 0.95,
-    frequency_penalty: Number.isFinite(Number(frequency_penalty)) ? Number(frequency_penalty) : 1.2,
-    presence_penalty: Number.isFinite(Number(presence_penalty)) ? Number(presence_penalty) : 1.0,
+    frequency_penalty: Number.isFinite(Number(frequency_penalty)) ? Number(frequency_penalty) : 0.65,
+    presence_penalty: Number.isFinite(Number(presence_penalty)) ? Number(presence_penalty) : 0.55,
     seed: Number.isFinite(Number(seed)) ? Number(seed) : Math.floor(Math.random() * 100000),
     response_format: { type: "json_object" }
   };
@@ -5057,9 +5229,8 @@ async function requestDeepSeek({ model, systemPrompt, userPrompt, gossip, respon
     finalRoast = String(finalRoast || "").trim();
 
     const originalRoast = finalRoast;
-    finalRoast = trimFinalVerdictSection(finalRoast);
-    if (originalRoast && extractJsonObject(originalRoast) && !extractJsonObject(finalRoast)) {
-      finalRoast = originalRoast;
+    if (!(originalRoast.trim().charAt(0) === "{" || extractJsonObject(originalRoast))) {
+      finalRoast = trimFinalVerdictSection(finalRoast);
     }
 
     if (!finalRoast) {
@@ -5110,3 +5281,13 @@ function createRateLimiter(windowMs, maxHits) {
     }
   };
 }
+
+module.exports = {
+  parseAndValidateModuleJson,
+  extractJsonObject,
+  salvageLabeledRoastPayload,
+  applyModuleFieldAliases,
+  trimFinalVerdictSection,
+  compileUserPrompt,
+  APP_MODULES
+};
