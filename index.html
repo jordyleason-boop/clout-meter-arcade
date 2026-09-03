@@ -1118,18 +1118,18 @@
           <div id="clout-metrics" class="grid w-full grid-cols-3 gap-1.5 px-1 text-center sm:gap-2 sm:px-4">
             <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-cyan-400/20 px-1.5 py-2">
               <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center text-cyan-200">Charisma</span>
-              <span id="metric-charisma-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-cyan-100 xs:text-xs sm:text-sm">0/10</span>
-              <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-charisma-bar" class="metric-fill metric-cyan rounded-full"></div></div>
+              <span id="metric-charisma-val" class="charisma-label mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-cyan-100 xs:text-xs sm:text-sm">0/10</span>
+              <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-charisma-bar" class="charisma-bar metric-fill metric-cyan rounded-full"></div></div>
             </div>
             <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-fuchsia-400/20 px-1.5 py-2">
               <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center text-fuchsia-200">Cringe</span>
-              <span id="metric-cringe-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-fuchsia-100 xs:text-xs sm:text-sm">0/10</span>
-              <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-cringe-bar" class="metric-fill metric-magenta rounded-full"></div></div>
+              <span id="metric-cringe-val" class="cringe-label mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-fuchsia-100 xs:text-xs sm:text-sm">0/10</span>
+              <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-cringe-bar" class="cringe-bar metric-fill metric-magenta rounded-full"></div></div>
             </div>
             <div class="flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-gray-800 bg-purple-400/20 px-1.5 py-2">
               <span class="text-[10px] sm:text-xs tracking-wider font-black uppercase text-center text-purple-200">Threat</span>
-              <span id="metric-threat-val" class="mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-purple-100 xs:text-xs sm:text-sm">0/10</span>
-              <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-threat-bar" class="metric-fill metric-purple rounded-full"></div></div>
+              <span id="metric-threat-val" class="threat-label mt-0.5 whitespace-nowrap text-center font-mono text-[10px] font-black tracking-tight text-purple-100 xs:text-xs sm:text-sm">0/10</span>
+              <div class="metric-track mt-1.5 w-full rounded-full"><div id="metric-threat-bar" class="threat-bar metric-fill metric-purple rounded-full"></div></div>
             </div>
           </div>
           <blockquote class="oneliner-card rounded-2xl px-4 py-4 text-center">
@@ -4331,17 +4331,43 @@
             if (!metricsObj) {
               metricsObj = {};
             }
+            if (data.stats && typeof data.stats === "object") {
+              if (data.stats.charisma != null) metricsObj.charisma_level = data.stats.charisma;
+              if (data.stats.cringe != null) metricsObj.cringe_factor = data.stats.cringe;
+              if (data.stats.threat != null) metricsObj.threat_multiplier = data.stats.threat;
+            }
             var charismaLevel = parseMetricScore(metricsObj.charisma_level);
             var cringeFactor = parseMetricScore(metricsObj.cringe_factor);
             var threatMultiplier = parseMetricScore(metricsObj.threat_multiplier);
+            if (!charismaLevel) charismaLevel = 5;
+            if (!cringeFactor) cringeFactor = 5;
+            if (!threatMultiplier) threatMultiplier = 5;
             data.clout_metrics = {
               charisma_level: charismaLevel,
               cringe_factor: cringeFactor,
               threat_multiplier: threatMultiplier
             };
+            data.stats = {
+              charisma: charismaLevel,
+              cringe: cringeFactor,
+              threat: threatMultiplier
+            };
             roastData.clout_metrics = data.clout_metrics;
+            roastData.stats = data.stats;
             data.result = roastData;
             renderCloutMetrics(data);
+            var charismaLabelEl = document.getElementById("metric-charisma-val") || document.querySelector(".charisma-label");
+            var cringeLabelEl = document.getElementById("metric-cringe-val") || document.querySelector(".cringe-label");
+            var threatLabelEl = document.getElementById("metric-threat-val") || document.querySelector(".threat-label");
+            var charismaBarEl = document.getElementById("metric-charisma-bar") || document.querySelector(".charisma-bar");
+            var cringeBarEl = document.getElementById("metric-cringe-bar") || document.querySelector(".cringe-bar");
+            var threatBarEl = document.getElementById("metric-threat-bar") || document.querySelector(".threat-bar");
+            if (charismaLabelEl) charismaLabelEl.innerText = charismaLevel + "/10";
+            if (cringeLabelEl) cringeLabelEl.innerText = cringeFactor + "/10";
+            if (threatLabelEl) threatLabelEl.innerText = threatMultiplier + "/10";
+            if (charismaBarEl) charismaBarEl.style.width = (charismaLevel * 10) + "%";
+            if (cringeBarEl) cringeBarEl.style.width = (cringeFactor * 10) + "%";
+            if (threatBarEl) threatBarEl.style.width = (threatMultiplier * 10) + "%";
 
             if (!data.result || typeof data.result !== "object") throw new Error("Empty model response");
             return data;
@@ -4714,6 +4740,10 @@
         result.final_verdict = fenceIsolatedVerdict(verdictText);
         envelope.final_verdict = result.final_verdict;
 
+        if (envelope.stats && typeof envelope.stats === "object") {
+          result.stats = envelope.stats;
+        }
+
         var metrics = parseMetricsObject(result.clout_metrics);
         if (!metrics) {
           metrics = parseMetricsObject(result.cloutMetrics);
@@ -4995,6 +5025,20 @@
 
       function extractCloutMetrics(payload) {
         var data = unwrapModulePayload(payload);
+        var envelope = payload && typeof payload === "object" ? payload : {};
+        var stats = envelope.stats || data.stats;
+        if (stats && typeof stats === "object") {
+          var statCharisma = parseMetricScore(stats.charisma);
+          var statCringe = parseMetricScore(stats.cringe);
+          var statThreat = parseMetricScore(stats.threat);
+          if (statCharisma > 0 || statCringe > 0 || statThreat > 0) {
+            return {
+              charisma_level: statCharisma > 0 ? statCharisma : 5,
+              cringe_factor: statCringe > 0 ? statCringe : 5,
+              threat_multiplier: statThreat > 0 ? statThreat : 5
+            };
+          }
+        }
         var metrics = parseMetricsObject(data.clout_metrics);
         if (!metrics) {
           metrics = parseMetricsObject(data.cloutMetrics);
@@ -5002,16 +5046,19 @@
         if (!metrics) {
           metrics = {};
         }
+        var charisma_level = parseMetricScore(
+          metrics.charisma_level != null ? metrics.charisma_level : data.charisma_level
+        );
+        var cringe_factor = parseMetricScore(
+          metrics.cringe_factor != null ? metrics.cringe_factor : data.cringe_factor
+        );
+        var threat_multiplier = parseMetricScore(
+          metrics.threat_multiplier != null ? metrics.threat_multiplier : data.threat_multiplier
+        );
         return {
-          charisma_level: parseMetricScore(
-            metrics.charisma_level != null ? metrics.charisma_level : data.charisma_level
-          ),
-          cringe_factor: parseMetricScore(
-            metrics.cringe_factor != null ? metrics.cringe_factor : data.cringe_factor
-          ),
-          threat_multiplier: parseMetricScore(
-            metrics.threat_multiplier != null ? metrics.threat_multiplier : data.threat_multiplier
-          )
+          charisma_level: charisma_level > 0 ? charisma_level : 5,
+          cringe_factor: cringe_factor > 0 ? cringe_factor : 5,
+          threat_multiplier: threat_multiplier > 0 ? threat_multiplier : 5
         };
       }
 
@@ -5029,21 +5076,13 @@
       }
 
       function renderCloutMetrics(source) {
-        var data = unwrapModulePayload(source);
-        var metrics = parseMetricsObject(data.clout_metrics);
-        if (!metrics) {
-          metrics = parseMetricsObject(data.cloutMetrics);
-        }
-        if (!metrics) {
-          metrics = {};
-        }
+        var extracted = extractCloutMetrics(source);
+        var charismaScore = extracted.charisma_level;
+        var cringeScore = extracted.cringe_factor;
+        var threatScore = extracted.threat_multiplier;
 
-        var charismaScore = parseMetricScore(metrics.charisma_level);
-        var cringeScore = parseMetricScore(metrics.cringe_factor);
-        var threatScore = parseMetricScore(metrics.threat_multiplier);
-
-        var charismaLabel = document.getElementById("metric-charisma-val");
-        var charismaBar = document.getElementById("metric-charisma-bar");
+        var charismaLabel = document.getElementById("metric-charisma-val") || document.querySelector(".charisma-label");
+        var charismaBar = document.getElementById("metric-charisma-bar") || document.querySelector(".charisma-bar");
         if (charismaLabel) {
           charismaLabel.innerText = charismaScore + "/10";
         }
@@ -5057,8 +5096,8 @@
           });
         }
 
-        var cringeLabel = document.getElementById("metric-cringe-val");
-        var cringeBar = document.getElementById("metric-cringe-bar");
+        var cringeLabel = document.getElementById("metric-cringe-val") || document.querySelector(".cringe-label");
+        var cringeBar = document.getElementById("metric-cringe-bar") || document.querySelector(".cringe-bar");
         if (cringeLabel) {
           cringeLabel.innerText = cringeScore + "/10";
         }
@@ -5072,8 +5111,8 @@
           });
         }
 
-        var threatLabel = document.getElementById("metric-threat-val");
-        var threatBar = document.getElementById("metric-threat-bar");
+        var threatLabel = document.getElementById("metric-threat-val") || document.querySelector(".threat-label");
+        var threatBar = document.getElementById("metric-threat-bar") || document.querySelector(".threat-bar");
         if (threatLabel) {
           threatLabel.innerText = threatScore + "/10";
         }
