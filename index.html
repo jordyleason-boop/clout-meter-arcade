@@ -6445,60 +6445,24 @@
       }
       window.lockTargetOrWatchAd = lockTargetOrWatchAd;
 
-      var MONETAG_SDK_ZONE_ID = 11716521;
-      var MONETAG_REWARD_ZONE_ID = 3476189;
-
-      function resolveMonetagRewardedInvoker() {
-        var sdkShow = window["show_" + String(MONETAG_SDK_ZONE_ID)];
-        if (typeof sdkShow === "function") return sdkShow;
-        if (typeof window.showRewardedAd === "function") return window.showRewardedAd;
-        return null;
-      }
-
       function triggerPlatformVideoAd() {
-        var showRewardedAd = resolveMonetagRewardedInvoker();
-        if (typeof showRewardedAd !== "function") {
+        if (typeof show_11716521 !== "function") {
           alert("Monetag stream connecting... please tap again in a brief second!");
           return;
         }
 
-        var rewardGranted = false;
-        function grantMonetagReward() {
-          if (rewardGranted) return;
-          rewardGranted = true;
-          injectTokenRewardDirectly();
-          try {
+        // Launch the official unskippable native Monetag rewarded ad frame window overlay
+        show_11716521()
+          .then(() => {
+            // Securely invoke our token database injector routine to grant the +1 coin
+            injectTokenRewardDirectly();
             if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showAlert) {
               window.Telegram.WebApp.showAlert("🎰 SPONSOR VERIFIED! +1 Free Arcade Coin has been safely added to your machine balance.");
             }
-          } catch (_notifyErr) {}
-        }
-
-        try {
-          var result = showRewardedAd({
-            zoneId: MONETAG_REWARD_ZONE_ID,
-            type: "end",
-            ymid: String(resolveCurrentUserId() || ""),
-            onReward: function () {
-              grantMonetagReward();
-            },
-            onClose: function () {
-              console.log("Monetag viewport overlay frame closed by user.");
-            },
-            onError: function (err) {
-              console.error("Monetag tracking exception:", err);
-            }
+          })
+          .catch((err) => {
+            console.error("Monetag tracking exception:", err);
           });
-          if (result && typeof result.then === "function") {
-            result.then(function () {
-              grantMonetagReward();
-            }).catch(function (err) {
-              console.error("Monetag tracking exception:", err);
-            });
-          }
-        } catch (err) {
-          console.error("Monetag tracking exception:", err);
-        }
       }
       window.triggerPlatformVideoAd = triggerPlatformVideoAd;
 
