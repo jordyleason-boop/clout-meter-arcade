@@ -9,6 +9,7 @@
   <meta name="theme-color" content="#050508" />
   <meta name="color-scheme" content="dark" />
   <title>Clout Meter</title>
+  <!-- verdict-fence-v4 -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="//libtl.com/sdk.js" data-zone="11716521" data-sdk="show_11716521"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -4354,6 +4355,12 @@
           return;
         }
         var value = String(text == null ? "" : text);
+        if (el.id === "slot-final_verdict") {
+          value = fenceIsolatedVerdict(value);
+          el.textContent = value;
+          if (typeof onDone === "function") onDone();
+          return;
+        }
         el.textContent = "";
         var i = 0;
         function finish() {
@@ -5157,9 +5164,10 @@
           injectBioAnnihilation(roastPayload);
           roastReady();
           renderCloutMetrics(roastPayload);
-          state.streamTimers.push(setTimeout(function () {
-            streamInto(document.getElementById("slot-final_verdict"), extractFinalVerdict(roastPayload), 10, roastReady);
-          }, 280));
+          var verdictEl = document.getElementById("slot-final_verdict");
+          var verdictText = fenceIsolatedVerdict(extractFinalVerdict(roastPayload));
+          if (verdictEl) verdictEl.textContent = verdictText;
+          roastReady();
           return;
         }
 

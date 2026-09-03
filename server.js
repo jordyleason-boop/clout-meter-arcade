@@ -198,6 +198,8 @@ app.use((req, res, next) => {
 });
 
 app.get("/", (_req, res) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.set("Pragma", "no-cache");
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
