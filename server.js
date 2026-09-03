@@ -4711,34 +4711,60 @@ function extractJsonObject(text) {
   return null;
 }
 
+function findDuplicatePhraseCut(body) {
+  const text = body == null ? "" : String(body);
+  const min = 18;
+  if (text.length < min * 2) return -1;
+  for (let i = 0; i <= text.length - min * 2; i += 1) {
+    const chunk = text.substring(i, i + min);
+    if (!/[A-Za-z]/.test(chunk)) continue;
+    const again = text.indexOf(chunk, i + min);
+    if (again === -1) continue;
+    const before = text.substring(0, again);
+    const lastPeriod = before.lastIndexOf(".");
+    const lastBang = before.lastIndexOf("!");
+    const lastQuest = before.lastIndexOf("?");
+    const lastPunct = Math.max(lastPeriod, lastBang, lastQuest);
+    if (lastPunct >= i) return lastPunct + 1;
+    return again;
+  }
+  return -1;
+}
+
+function fenceIsolatedVerdict(raw) {
+  let body = raw == null ? "" : String(raw).trim();
+  if (!body) return "";
+
+  const dupCut = findDuplicatePhraseCut(body);
+  if (dupCut > 0) {
+    body = body.substring(0, dupCut).trim();
+  }
+
+  const firstSentenceEnd = body.search(/[.!?]/);
+  if (firstSentenceEnd !== -1) {
+    body = body.substring(0, firstSentenceEnd + 1).trim();
+  }
+
+  body = body.replace(/[*_`]+([.!?])$/, "$1");
+  body = body.replace(/([.!?])[*_`]+$/, "$1");
+  body = body.replace(/\.[a-zA-Z0-9]+$/, ".");
+  body = body.replace(/[*_`]+$/g, "").trim();
+  if (!/[.!?]$/.test(body)) {
+    body += ".";
+  }
+  return body;
+}
+
 function trimFinalVerdictSection(raw) {
   let finalRoast = raw == null ? "" : String(raw);
   finalRoast = finalRoast.trim();
 
-  // 1. Isolate the Final Verdict header tracking index position cleanly
   const verdictHeaderMatch = finalRoast.match(/final verdict/i);
   if (verdictHeaderMatch && verdictHeaderMatch.index !== undefined) {
     const searchStartIndex = finalRoast.indexOf("\n", verdictHeaderMatch.index);
     if (searchStartIndex !== -1) {
-      let verdictBody = finalRoast.substring(searchStartIndex).trim();
-
-      // 2. Locate the absolute first sentence termination boundary markers
-      // Hunt for a period, exclamation, or question mark that signals the true end of the first structural sentence
-      const firstSentenceEnd = verdictBody.search(/[\.\!\?]/);
-
-      if (firstSentenceEnd !== -1) {
-        // HARD FENCE: Extract ONLY that first perfect sentence block and slice the rest of the text out of existence entirely
-        verdictBody = verdictBody.substring(0, firstSentenceEnd + 1).trim();
-
-        // Clean up any accidental squashed letters attached directly to the period mark
-        verdictBody = verdictBody.replace(/\.[a-zA-Z0-9\s]*$/, ".");
-        if (!verdictBody.endsWith(".")) {
-          verdictBody += ".";
-        }
-
-        // Reassemble the pristine, loop-free message text components back together
-        finalRoast = finalRoast.substring(0, verdictHeaderMatch.index).trim() + "\n\nFINAL VERDICT\n" + verdictBody;
-      }
+      const verdictBody = fenceIsolatedVerdict(finalRoast.substring(searchStartIndex).trim());
+      finalRoast = finalRoast.substring(0, verdictHeaderMatch.index).trim() + "\n\nFINAL VERDICT\n" + verdictBody;
     }
   }
 
@@ -4746,14 +4772,7 @@ function trimFinalVerdictSection(raw) {
 }
 
 function trimIsolatedVerdictSentence(raw) {
-  const body = raw == null ? "" : String(raw).trim();
-  if (!body) return "";
-  const cleaned = trimFinalVerdictSection("Final verdict\n" + body);
-  const headerMatch = cleaned.match(/final verdict\s*\n?/i);
-  if (headerMatch && headerMatch.index !== undefined) {
-    return cleaned.substring(headerMatch.index + headerMatch[0].length).trim();
-  }
-  return cleaned.trim();
+  return fenceIsolatedVerdict(raw);
 }
 
 function cleanRepeatingAiTail(raw) {

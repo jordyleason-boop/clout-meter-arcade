@@ -4697,6 +4697,16 @@
         }
         result.brutal_oneliner = oneliner;
 
+        var verdictText = coercePayloadString(result.final_verdict);
+        if (!verdictText) {
+          verdictText = coercePayloadString(result.finalVerdict);
+        }
+        if (!verdictText) {
+          verdictText = coercePayloadString(envelope.final_verdict);
+        }
+        result.final_verdict = fenceIsolatedVerdict(verdictText);
+        envelope.final_verdict = result.final_verdict;
+
         var metrics = parseMetricsObject(result.clout_metrics);
         if (!metrics) {
           metrics = parseMetricsObject(result.cloutMetrics);
@@ -4875,13 +4885,46 @@
         return "";
       }
 
+      function fenceIsolatedVerdict(raw) {
+        var body = raw == null ? "" : String(raw).trim();
+        if (!body) return "";
+        var min = 18;
+        var dupCut = -1;
+        if (body.length >= min * 2) {
+          var i;
+          for (i = 0; i <= body.length - min * 2; i += 1) {
+            var chunk = body.substring(i, i + min);
+            if (!/[A-Za-z]/.test(chunk)) continue;
+            var again = body.indexOf(chunk, i + min);
+            if (again === -1) continue;
+            var before = body.substring(0, again);
+            var lastPunct = Math.max(before.lastIndexOf("."), before.lastIndexOf("!"), before.lastIndexOf("?"));
+            dupCut = lastPunct >= i ? lastPunct + 1 : again;
+            break;
+          }
+        }
+        if (dupCut > 0) {
+          body = body.substring(0, dupCut).trim();
+        }
+        var firstSentenceEnd = body.search(/[.!?]/);
+        if (firstSentenceEnd !== -1) {
+          body = body.substring(0, firstSentenceEnd + 1).trim();
+        }
+        body = body.replace(/[*_`]+([.!?])$/, "$1");
+        body = body.replace(/([.!?])[*_`]+$/, "$1");
+        body = body.replace(/\.[a-zA-Z0-9]+$/, ".");
+        body = body.replace(/[*_`]+$/g, "").trim();
+        if (!/[.!?]$/.test(body)) {
+          body += ".";
+        }
+        return body;
+      }
+
       function extractFinalVerdict(payload) {
         var data = unwrapModulePayload(payload);
         var verdict = coercePayloadString(data.final_verdict);
-        if (verdict) return verdict;
-        verdict = coercePayloadString(data.finalVerdict);
-        if (verdict) return verdict;
-        return "";
+        if (!verdict) verdict = coercePayloadString(data.finalVerdict);
+        return fenceIsolatedVerdict(verdict);
       }
 
       function parseMetricsObject(raw) {
