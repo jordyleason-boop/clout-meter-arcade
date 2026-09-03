@@ -4715,46 +4715,17 @@ function trimFinalVerdictSection(raw) {
   let finalRoast = raw == null ? "" : String(raw);
   finalRoast = finalRoast.trim();
 
-  // 1. Surgical isolation of the Final Verdict body section
+  // Find the 'Final verdict' header
   const verdictHeaderMatch = finalRoast.match(/final verdict/i);
   if (verdictHeaderMatch && verdictHeaderMatch.index !== undefined) {
     const searchStartIndex = finalRoast.indexOf("\n", verdictHeaderMatch.index);
     if (searchStartIndex !== -1) {
       let verdictBody = finalRoast.substring(searchStartIndex).trim();
 
-      // 2. Perform raw character-level rolling duplicate scanning
-      let cutIndex = -1;
-      const CHUNK_SIZE = 15; // A 15-character block is perfect for catching loop repetitions
-
-      for (let i = 0; i <= verdictBody.length - (CHUNK_SIZE * 2); i += 1) {
-        const sampleChunk = verdictBody.substring(i, i + CHUNK_SIZE);
-        const remainingText = verdictBody.substring(i + CHUNK_SIZE);
-
-        if (remainingText.includes(sampleChunk)) {
-          // Found a duplicate! Find exactly where the text begins to echo itself
-          const repeatPosition = verdictBody.indexOf(sampleChunk, i + CHUNK_SIZE);
-
-          // Trace backwards to find the nearest sentence period before the repeat started
-          const textBeforeRepeat = verdictBody.substring(0, repeatPosition);
-          const lastPeriod = textBeforeRepeat.lastIndexOf(".");
-
-          if (lastPeriod !== -1 && lastPeriod > i) {
-            cutIndex = lastPeriod + 1; // Cut cleanly right at the legitimate sentence stop
-          } else {
-            cutIndex = repeatPosition; // Fallback to the exact duplicate boundary line
-          }
-          break;
-        }
-      }
-
-      // 3. Slice away the echo tail and clean the trailing characters
-      if (cutIndex !== -1) {
-        verdictBody = verdictBody.substring(0, cutIndex).trim();
-        // Evict any messy, squashed trailing artifacts (like '.tenced' or partial letters)
-        verdictBody = verdictBody.replace(/\.[a-zA-Z0-9\s]*$/, "");
-        if (!verdictBody.endsWith(".")) {
-          verdictBody += ".";
-        }
+      // If a dot occurs mid-word with trailing text (e.g. 'block.t'), split cleanly right at the first dot
+      const dotIndex = verdictBody.indexOf(".");
+      if (dotIndex !== -1 && dotIndex < verdictBody.length - 1) {
+        verdictBody = verdictBody.substring(0, dotIndex + 1);
         finalRoast = finalRoast.substring(0, searchStartIndex).trim() + "\n\n" + verdictBody;
       }
     }
@@ -4825,10 +4796,12 @@ async function requestDeepSeek({ model, systemPrompt, userPrompt, gossip, respon
   messages.push({ role: "user", content: userPrompt });
 
   const payload = {
-    model: "deepseek-chat",
-    temperature: Number(DEEPSEEK_CFG.temperature || 0.88),
-    max_tokens: Number(DEEPSEEK_CFG.max_tokens || 700),
+    model: model || "deepseek-chat",
     messages,
+    max_tokens: 350,
+    temperature: 0.7,
+    frequency_penalty: 0.8,
+    presence_penalty: 0.8,
     response_format: { type: "json_object" }
   };
   if (response_format && typeof response_format === "object" && response_format.type) {
