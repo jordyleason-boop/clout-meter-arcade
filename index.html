@@ -10,6 +10,7 @@
   <meta name="color-scheme" content="dark" />
   <title>Clout Meter</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://alwingulla.com/88/tag.min.js" data-zone="89324" data-sdk="show_89324" async data-pwt="tg" data-cfasync="false"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1240,42 +1241,6 @@
           🚀 INVITE SQUAD (+2 TOKENS)
         </button>
       </section>
-    </div>
-  </div>
-
-  <div id="premium-modal" data-premium-purchase class="modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-6" aria-hidden="true">
-    <div class="sheet w-full max-w-md rounded-t-3xl border border-fuchsia-400/45 bg-[#090716] px-5 pb-6 pt-4 sm:rounded-3xl">
-      <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/15 sm:hidden"></div>
-      <div class="mb-4 flex items-center gap-3">
-        <div class="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-gold to-amber-700 font-display text-lg font-extrabold text-ink-950">★</div>
-        <div>
-          <h3 class="font-display text-xl font-extrabold uppercase tracking-[0.08em] text-white">1-MONTH ALL-ACCESS PASS</h3>
-          <p class="text-sm text-white/55">Gold aura, skip the queue, and ad-free scans for the full 30-day window.</p>
-        </div>
-      </div>
-      <div class="mb-4 rounded-2xl border border-fuchsia-400/40 bg-black/35 p-4 shadow-[0_0_24px_rgba(255,0,170,0.12),inset_0_0_0_1px_rgba(0,240,255,0.08)]">
-        <div id="flash-sale-badge-wrap" class="mb-3 flex justify-center">
-          <span class="flash-sale-badge rounded-full border border-fuchsia-300/55 bg-fuchsia-500/15 px-3 py-1 font-display text-[10px] font-extrabold uppercase tracking-[0.18em] text-fuchsia-100">🔥 LIMITED FLASH SALE</span>
-        </div>
-        <p class="mb-3 text-center font-display text-sm font-extrabold uppercase tracking-[0.16em] text-cyan-100">1-MONTH ALL-ACCESS PASS</p>
-        <div id="premium-price-grid" class="mb-3 flex items-baseline justify-center gap-x-3">
-          <span id="price-anchor" class="price-anchor whitespace-nowrap font-display text-base font-semibold tracking-wide">550 Stars</span>
-          <span id="price-promo" class="price-promo whitespace-nowrap font-display text-[1.85rem] font-extrabold leading-none tracking-tight sm:text-5xl">449 Stars</span>
-        </div>
-        <p id="sale-countdown" class="sale-countdown mb-3 text-center font-display text-[11px] font-extrabold uppercase tracking-[0.14em]">Offer expires in: <span id="sale-countdown-clock" class="sale-countdown-clock">24:00:00</span></p>
-        <ul class="mt-3 space-y-1.5 text-sm text-white/70">
-          <li data-i18n="perk1">• Unlimited scans with ads cleared</li>
-          <li data-i18n="perk2">• +250 bonus Clout Points</li>
-          <li data-i18n="perk3">• Gold badge on every roast</li>
-        </ul>
-      </div>
-      <p id="premium-status" class="mb-3 min-h-[1.25rem] text-sm text-gold/80"></p>
-      <button id="pay-btn" type="button" class="premium-glow mb-2 w-full rounded-2xl bg-gradient-to-r from-fuchsia-500 via-pink-400 to-cyan-300 py-3.5 font-display font-extrabold uppercase tracking-[0.14em] text-[#05030a]">
-        <span data-i18n="payStars">Pay with Telegram Stars</span>
-      </button>
-      <button id="close-premium" type="button" class="w-full rounded-2xl border border-white/10 py-3 text-sm text-white/70">
-        <span data-i18n="cancel">Cancel</span>
-      </button>
     </div>
   </div>
 
@@ -5597,7 +5562,7 @@
         document.getElementById("scan-loading-bar").classList.add("hidden");
         setStatus("Free lifetime passes consumed! Initializing sponsor video ad...");
         logAds(t("adWatching"));
-        showRewardedAd(target);
+        runScanRewardedGate(target);
       }
 
       function logAds(message) {
@@ -5629,7 +5594,7 @@
         if (state.pendingTarget) abortProcess();
       }
 
-      function showRewardedAd(target) {
+      function runScanRewardedGate(target) {
         if (is_premium_user) {
           startSecureFetch(target, state.gateToken, state.pendingGossip || state.insiderContext || "");
           return;
@@ -6480,10 +6445,58 @@
       }
       window.lockTargetOrWatchAd = lockTargetOrWatchAd;
 
+      var MONETAG_ZONE_ID = 89324;
+
+      function resolveMonetagRewardedInvoker() {
+        if (typeof window.show_89324 === "function") return window.show_89324;
+        if (typeof window.showRewardedAd === "function") return window.showRewardedAd;
+        return null;
+      }
+
       function triggerPlatformVideoAd() {
-        console.log("Universal Ad loop initialized.");
-        // This allows us to drop a clean custom alternative SDK frame right here next
-        injectTokenRewardDirectly();
+        var showAd = resolveMonetagRewardedInvoker();
+        if (typeof showAd !== "function") {
+          alert("Monetag stream initializing... please tap again in a brief second!");
+          return;
+        }
+
+        var rewardGranted = false;
+        function grantMonetagReward() {
+          if (rewardGranted) return;
+          rewardGranted = true;
+          injectTokenRewardDirectly();
+          try {
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showAlert) {
+              window.Telegram.WebApp.showAlert("🎰 SPONSOR VERIFIED! +1 Free Arcade Coin has been safely added to your machine balance.");
+            }
+          } catch (_notifyErr) {}
+        }
+
+        try {
+          var result = showAd({
+            zoneId: MONETAG_ZONE_ID,
+            type: "end",
+            ymid: String(resolveCurrentUserId() || ""),
+            onReward: function () {
+              grantMonetagReward();
+            },
+            onClose: function () {
+              console.log("Monetag viewport overlay frame closed by user.");
+            },
+            onError: function (err) {
+              console.error("Monetag ad stream error execution trap:", err);
+            }
+          });
+          if (result && typeof result.then === "function") {
+            result.then(function () {
+              grantMonetagReward();
+            }).catch(function (err) {
+              console.error("Monetag ad stream error execution trap:", err);
+            });
+          }
+        } catch (err) {
+          console.error("Monetag ad stream error execution trap:", err);
+        }
       }
       window.triggerPlatformVideoAd = triggerPlatformVideoAd;
 
@@ -6551,12 +6564,18 @@
           }
         });
       });
-      document.getElementById("close-premium").addEventListener("click", function () {
-        closeModal(document.getElementById("premium-modal"));
-      });
-      document.getElementById("premium-modal").addEventListener("click", function (event) {
-        if (event.target === event.currentTarget) closeModal(event.currentTarget);
-      });
+      var closePremiumBtn = document.getElementById("close-premium");
+      if (closePremiumBtn) {
+        closePremiumBtn.addEventListener("click", function () {
+          closeModal(document.getElementById("premium-modal"));
+        });
+      }
+      var premiumModal = document.getElementById("premium-modal");
+      if (premiumModal) {
+        premiumModal.addEventListener("click", function (event) {
+          if (event.target === event.currentTarget) closeModal(event.currentTarget);
+        });
+      }
       document.getElementById("close-arcade-coin").addEventListener("click", function () {
         closeArcadeCoinShop();
       });
