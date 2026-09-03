@@ -4715,18 +4715,29 @@ function trimFinalVerdictSection(raw) {
   let finalRoast = raw == null ? "" : String(raw);
   finalRoast = finalRoast.trim();
 
-  // Find the 'Final verdict' header
+  // 1. Isolate the Final Verdict header tracking index position cleanly
   const verdictHeaderMatch = finalRoast.match(/final verdict/i);
   if (verdictHeaderMatch && verdictHeaderMatch.index !== undefined) {
     const searchStartIndex = finalRoast.indexOf("\n", verdictHeaderMatch.index);
     if (searchStartIndex !== -1) {
       let verdictBody = finalRoast.substring(searchStartIndex).trim();
 
-      // If a dot occurs mid-word with trailing text (e.g. 'block.t'), split cleanly right at the first dot
-      const dotIndex = verdictBody.indexOf(".");
-      if (dotIndex !== -1 && dotIndex < verdictBody.length - 1) {
-        verdictBody = verdictBody.substring(0, dotIndex + 1);
-        finalRoast = finalRoast.substring(0, searchStartIndex).trim() + "\n\n" + verdictBody;
+      // 2. Locate the absolute first sentence termination boundary markers
+      // Hunt for a period, exclamation, or question mark that signals the true end of the first structural sentence
+      const firstSentenceEnd = verdictBody.search(/[\.\!\?]/);
+
+      if (firstSentenceEnd !== -1) {
+        // HARD FENCE: Extract ONLY that first perfect sentence block and slice the rest of the text out of existence entirely
+        verdictBody = verdictBody.substring(0, firstSentenceEnd + 1).trim();
+
+        // Clean up any accidental squashed letters attached directly to the period mark
+        verdictBody = verdictBody.replace(/\.[a-zA-Z0-9\s]*$/, ".");
+        if (!verdictBody.endsWith(".")) {
+          verdictBody += ".";
+        }
+
+        // Reassemble the pristine, loop-free message text components back together
+        finalRoast = finalRoast.substring(0, verdictHeaderMatch.index).trim() + "\n\nFINAL VERDICT\n" + verdictBody;
       }
     }
   }
@@ -4737,7 +4748,12 @@ function trimFinalVerdictSection(raw) {
 function trimIsolatedVerdictSentence(raw) {
   const body = raw == null ? "" : String(raw).trim();
   if (!body) return "";
-  return trimFinalVerdictSection("Final verdict\n" + body).replace(/^final verdict\s*/i, "").trim();
+  const cleaned = trimFinalVerdictSection("Final verdict\n" + body);
+  const headerMatch = cleaned.match(/final verdict\s*\n?/i);
+  if (headerMatch && headerMatch.index !== undefined) {
+    return cleaned.substring(headerMatch.index + headerMatch[0].length).trim();
+  }
+  return cleaned.trim();
 }
 
 function cleanRepeatingAiTail(raw) {
