@@ -705,9 +705,6 @@ app.post("/api/process-action", async (req, res) => {
     let threat = 5;
     const metricsMatch = finalRoast.match(/METRICS_MATRIX\[CHARISMA:\s*(\d+),\s*CRINGE:\s*(\d+),\s*THREAT:\s*(\d+)\]/i);
     if (metricsMatch) {
-      charisma = parseInt(metricsMatch[1], 10);
-      cringe = parseInt(metricsMatch[2], 10);
-      threat = parseInt(metricsMatch[3], 10);
       finalRoast = finalRoast.replace(/METRICS_MATRIX\[.*\]/i, "").trim();
     }
 
@@ -718,12 +715,21 @@ app.post("/api/process-action", async (req, res) => {
       }
     }
 
-    if (!metricsMatch) {
-      const resolved = resolveArcadeStats(finalRoast, structured.data || {});
-      charisma = resolved.charisma;
-      cringe = resolved.cringe;
-      threat = resolved.threat;
-    }
+    const seedSource = [
+      parsedBody.target,
+      parsedBody.gossip,
+      structured.data && structured.data.brutal_oneliner,
+      structured.data && structured.data.vibe_matrix,
+      structured.data && structured.data.bio_annihilation,
+      structured.data && structured.data.final_verdict,
+      finalRoast,
+      String(Date.now()),
+      String(crypto.randomBytes(8).toString("hex"))
+    ].join("|");
+    const rolled = rollArcadeStatsFromContent(seedSource);
+    charisma = rolled.charisma;
+    cringe = rolled.cringe;
+    threat = rolled.threat;
     charisma = clampArcadeStat(charisma, 5);
     cringe = clampArcadeStat(cringe, 5);
     threat = clampArcadeStat(threat, 5);
@@ -4694,26 +4700,69 @@ function stripMetricsMatrixTag(raw) {
   return String(raw == null ? "" : raw).replace(/METRICS_MATRIX\[[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-function resolveArcadeStats(finalRoast, structuredData) {
-  let charisma = 5;
-  let cringe = 5;
-  let threat = 5;
+function hashStringToUnit(raw, salt) {
+  let h = 2166136261 ^ (Number(salt) || 0);
+  const text = String(raw == null ? "" : raw);
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) / 4294967296;
+}
+
+function rollArcadeStat(seed, salt) {
+  const hashed = Math.floor(hashStringToUnit(seed, salt) * 10);
+  let jitter = 0;
+  try {
+    jitter = crypto.randomInt(0, 4);
+  } catch (_err) {
+    jitter = Math.floor(Math.random() * 4);
+  }
+  return 1 + ((hashed + jitter) % 10);
+}
+
+function isStaleArcadeTrio(charisma, cringe, threat) {
+  return Number(charisma) === 2 && Number(cringe) === 8 && Number(threat) === 1;
+}
+
+function rollArcadeStatsFromContent(seedSource) {
+  const seed = String(seedSource || "arcade-seed");
+  let charisma = rollArcadeStat(seed, 0x9e3779b9);
+  let cringe = rollArcadeStat(seed, 0x85ebca6b);
+  let threat = rollArcadeStat(seed, 0xc2b2ae35);
+  if (isStaleArcadeTrio(charisma, cringe, threat)) {
+    threat = 4;
+  }
+  return {
+    charisma: clampArcadeStat(charisma, 5),
+    cringe: clampArcadeStat(cringe, 5),
+    threat: clampArcadeStat(threat, 5)
+  };
+}
+
+function resolveArcadeStats(finalRoast, structuredData, seedSource) {
+  const rolled = rollArcadeStatsFromContent(seedSource || finalRoast);
   const tag = parseMetricsMatrixTag(finalRoast);
-  if (tag) {
-    charisma = tag.charisma;
-    cringe = tag.cringe;
-    threat = tag.threat;
-  } else {
-    const metrics = structuredData && structuredData.clout_metrics && typeof structuredData.clout_metrics === "object"
-      ? structuredData.clout_metrics
-      : null;
-    if (metrics) {
-      if (Number(metrics.charisma_level) > 0) charisma = clampArcadeStat(metrics.charisma_level, 5);
-      if (Number(metrics.cringe_factor) > 0) cringe = clampArcadeStat(metrics.cringe_factor, 5);
-      if (Number(metrics.threat_multiplier) > 0) threat = clampArcadeStat(metrics.threat_multiplier, 5);
+  if (tag && !isStaleArcadeTrio(tag.charisma, tag.cringe, tag.threat)) {
+    return tag;
+  }
+  const metrics = structuredData && structuredData.clout_metrics && typeof structuredData.clout_metrics === "object"
+    ? structuredData.clout_metrics
+    : null;
+  if (metrics) {
+    const fromModel = {
+      charisma: clampArcadeStat(metrics.charisma_level, rolled.charisma),
+      cringe: clampArcadeStat(metrics.cringe_factor, rolled.cringe),
+      threat: clampArcadeStat(metrics.threat_multiplier, rolled.threat)
+    };
+    if (!isStaleArcadeTrio(fromModel.charisma, fromModel.cringe, fromModel.threat)) {
+      const hasLive = Number(metrics.charisma_level) > 0 || Number(metrics.cringe_factor) > 0 || Number(metrics.threat_multiplier) > 0;
+      if (hasLive && !isStaleArcadeTrio(metrics.charisma_level, metrics.cringe_factor, metrics.threat_multiplier)) {
+        return fromModel;
+      }
     }
   }
-  return { charisma, cringe, threat };
+  return rolled;
 }
 
 function parseLooseMetricsString(text) {
