@@ -54,12 +54,15 @@ const botToken = resolveSecret(
 const TELEGRAM_BOT_TOKEN = botToken;
 const OPENROUTER_API_KEY = resolveSecret(process.env.OPENROUTER_API_KEY, ENGINE_CONFIG.bot_credentials.openrouter_api_key);
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").trim();
-const SUPABASE_KEY = String(process.env.SUPABASE_KEY || "").trim();
+// RLS bypass: Render must set SUPABASE_SERVICE_ROLE_KEY (never the publishable/anon key).
+const SUPABASE_KEY = resolveSupabaseServiceRoleKey();
 const LEADERBOARDS_SELECT_COLUMNS = "id, target_id, rank, rival_username, clout_points, status_tag";
 const INITDATA_MAX_AGE_SECONDS = Number.parseInt(process.env.INITDATA_MAX_AGE_SECONDS || "86400", 10);
 const DEFAULT_MODEL = "deepseek-chat";
 const FREE_LIFETIME_ACTIONS = 3;
 const supabase = initializeSupabaseClient(SUPABASE_URL, SUPABASE_KEY);
+const DUMMY_TEST_TELEGRAM_IDS = Object.freeze([8888888, 999999999]);
+const DUMMY_TEST_USERNAMES = Object.freeze(["test_referral_warrior"]);
 
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   console.error("Invalid PORT");
@@ -80,7 +83,7 @@ if (!OPENROUTER_API_KEY) {
 }
 
 if (!supabase) {
-  console.warn("SUPABASE_URL or SUPABASE_KEY is missing; sessions, Stars, and leaderboards will not persist.");
+  console.warn("SUPABASE_SERVICE_ROLE_KEY is missing or is not a service_role key; the public anon/publishable key cannot bypass RLS.");
 }
 
 const userLimiter = createRateLimiter(LIMITS.rateWindowMs, LIMITS.rateMaxPerUser);
@@ -247,6 +250,13 @@ app.get("/api/init-webhook", async (_req, res) => {
       error: err && err.message ? err.message : "setWebhook failed"
     });
   }
+});
+
+app.get("/api/clean-test-data", async (req, res) => {
+  await handleCleanTestData(req, res);
+});
+app.post("/api/clean-test-data", async (req, res) => {
+  await handleCleanTestData(req, res);
 });
 
 app.post("/api/process-action", async (req, res) => {
@@ -1475,6 +1485,124 @@ function resolveSecret(envValue, configValue) {
   return fromConfig;
 }
 
+function decodeSupabaseKeyRole(key) {
+  try {
+    const raw = String(key || "").trim();
+    if (!raw) return "";
+    if (/^sb_secret_/i.test(raw)) return "service_role";
+    if (/^sb_publishable_/i.test(raw) || /^sb_anon_/i.test(raw)) return "anon";
+    const parts = raw.split(".");
+    if (parts.length < 2) return "";
+    const json = Buffer.from(parts[1], "base64url").toString("utf8");
+    const payload = JSON.parse(json);
+    return payload && payload.role != null ? String(payload.role).trim() : "";
+  } catch (_err) {
+    return "";
+  }
+}
+
+function isSupabaseServiceRoleKey(key) {
+  return decodeSupabaseKeyRole(key) === "service_role";
+}
+
+function resolveSupabaseServiceRoleKey() {
+  const fromServiceRole = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  if (fromServiceRole) {
+    if (isSupabaseServiceRoleKey(fromServiceRole)) return fromServiceRole;
+    console.warn("SUPABASE_SERVICE_ROLE_KEY is set but is not a service_role key; refusing the public anon/publishable key.");
+    return "";
+  }
+  const legacy = String(process.env.SUPABASE_KEY || "").trim();
+  if (legacy && isSupabaseServiceRoleKey(legacy)) return legacy;
+  if (legacy) {
+    console.warn("SUPABASE_KEY is a public anon/publishable credential; set SUPABASE_SERVICE_ROLE_KEY to bypass RLS.");
+  }
+  return "";
+}
+
+function normalizeDummyTestUsername(value) {
+  return String(value == null ? "" : value).trim().replace(/^@+/, "").toLowerCase();
+}
+
+function isDummyTestUserRow(row) {
+  if (!row || typeof row !== "object") return false;
+  const telegramId = Number(row.telegram_id);
+  if (DUMMY_TEST_TELEGRAM_IDS.indexOf(telegramId) !== -1) return true;
+  return DUMMY_TEST_USERNAMES.indexOf(normalizeDummyTestUsername(row.username)) !== -1;
+}
+
+async function handleCleanTestData(_req, res) {
+  res.set("Cache-Control", "no-store");
+  if (!supabase) {
+    res.status(503).json({
+      success: false,
+      error: "Supabase service_role client is not configured"
+    });
+    return;
+  }
+  try {
+    const { data: candidates, error: readError } = await supabase
+      .from("users")
+      .select("telegram_id, username")
+      .or(
+        "telegram_id.eq.8888888,telegram_id.eq.999999999,username.ilike.test_referral_warrior,username.ilike.@test_referral_warrior"
+      );
+
+    if (readError) {
+      res.status(502).json({
+        success: false,
+        error: readError.message || "Unable to inspect dummy test accounts"
+      });
+      return;
+    }
+
+    const rows = Array.isArray(candidates) ? candidates.filter(isDummyTestUserRow) : [];
+    const ids = [];
+    const seen = {};
+    for (let i = 0; i < rows.length; i += 1) {
+      const telegramId = Number(rows[i].telegram_id);
+      if (!Number.isFinite(telegramId) || seen[telegramId]) continue;
+      seen[telegramId] = true;
+      ids.push(telegramId);
+    }
+
+    if (ids.length === 0) {
+      res.status(200).json({
+        success: true,
+        deleted: 0,
+        telegram_ids: []
+      });
+      return;
+    }
+
+    const { data: deletedRows, error: deleteError } = await supabase
+      .from("users")
+      .delete()
+      .in("telegram_id", ids)
+      .select("telegram_id, username");
+
+    if (deleteError) {
+      res.status(502).json({
+        success: false,
+        error: deleteError.message || "Unable to delete dummy test accounts"
+      });
+      return;
+    }
+
+    const removed = Array.isArray(deletedRows) ? deletedRows.filter(isDummyTestUserRow) : [];
+    res.status(200).json({
+      success: true,
+      deleted: removed.length,
+      telegram_ids: removed.map(function (row) { return Number(row.telegram_id); })
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err && err.message ? err.message : "Test-data cleanup failed"
+    });
+  }
+}
+
 function initializeSupabaseClient(url, key) {
   try {
     const safeUrl = String(url || "").trim().replace(/\/+$/, "");
@@ -1482,6 +1610,10 @@ function initializeSupabaseClient(url, key) {
     if (!safeUrl || !safeKey) return null;
     if (!/^https:\/\//i.test(safeUrl)) {
       console.warn("SUPABASE_URL must be an https origin.");
+      return null;
+    }
+    if (!isSupabaseServiceRoleKey(safeKey)) {
+      console.warn("Refusing to initialize Supabase with a non-service_role key after RLS.");
       return null;
     }
     return createClient(safeUrl, safeKey, {
