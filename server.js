@@ -4722,41 +4722,40 @@ function trimFinalVerdictSection(raw) {
     if (searchStartIndex !== -1) {
       let verdictBody = finalRoast.substring(searchStartIndex).trim();
 
-      // 2. Scan for overlapping text loops by checking rolling word sequences
-      const words = verdictBody.split(/\s+/);
-      if (words.length > 8) {
-        let duplicateFound = false;
-        let cutIndex = -1;
+      // 2. Perform raw character-level rolling duplicate scanning
+      let cutIndex = -1;
+      const CHUNK_SIZE = 15; // A 15-character block is perfect for catching loop repetitions
 
-        // Take a 4-word sample stamp and look for its exact reoccurrence downstream
-        for (let i = 0; i < words.length - 8; i += 1) {
-          const samplePhrase = words.slice(i, i + 4).join(" ");
-          const restOfText = words.slice(i + 4).join(" ");
+      for (let i = 0; i <= verdictBody.length - (CHUNK_SIZE * 2); i += 1) {
+        const sampleChunk = verdictBody.substring(i, i + CHUNK_SIZE);
+        const remainingText = verdictBody.substring(i + CHUNK_SIZE);
 
-          if (restOfText.includes(samplePhrase)) {
-            // Find the exact text character coordinate where the loop starts repeating
-            const phraseIndexInRemaining = verdictBody.indexOf(
-              samplePhrase,
-              verdictBody.indexOf(samplePhrase) + samplePhrase.length
-            );
-            if (phraseIndexInRemaining !== -1) {
-              cutIndex = phraseIndexInRemaining;
-              duplicateFound = true;
-              break;
-            }
+        if (remainingText.includes(sampleChunk)) {
+          // Found a duplicate! Find exactly where the text begins to echo itself
+          const repeatPosition = verdictBody.indexOf(sampleChunk, i + CHUNK_SIZE);
+
+          // Trace backwards to find the nearest sentence period before the repeat started
+          const textBeforeRepeat = verdictBody.substring(0, repeatPosition);
+          const lastPeriod = textBeforeRepeat.lastIndexOf(".");
+
+          if (lastPeriod !== -1 && lastPeriod > i) {
+            cutIndex = lastPeriod + 1; // Cut cleanly right at the legitimate sentence stop
+          } else {
+            cutIndex = repeatPosition; // Fallback to the exact duplicate boundary line
           }
+          break;
         }
+      }
 
-        // 3. Slice the jumbled tail away instantly and seal it with a clean period
-        if (duplicateFound && cutIndex !== -1) {
-          verdictBody = verdictBody.substring(0, cutIndex).trim();
-          // Ensure it terminates with a single clean dot if stripped mid-sentence
-          if (!verdictBody.endsWith(".")) {
-            // Clean up accidental trailing fragment characters like '.n' or random letters
-            verdictBody = verdictBody.replace(/\.[a-zA-Z0-9\s]*$/, "") + ".";
-          }
-          finalRoast = finalRoast.substring(0, searchStartIndex).trim() + "\n\n" + verdictBody;
+      // 3. Slice away the echo tail and clean the trailing characters
+      if (cutIndex !== -1) {
+        verdictBody = verdictBody.substring(0, cutIndex).trim();
+        // Evict any messy, squashed trailing artifacts (like '.tenced' or partial letters)
+        verdictBody = verdictBody.replace(/\.[a-zA-Z0-9\s]*$/, "");
+        if (!verdictBody.endsWith(".")) {
+          verdictBody += ".";
         }
+        finalRoast = finalRoast.substring(0, searchStartIndex).trim() + "\n\n" + verdictBody;
       }
     }
   }
