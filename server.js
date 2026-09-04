@@ -349,7 +349,7 @@ app.post("/api/process-action", async (req, res) => {
     try {
       if (verified.ok && verified.user && verified.user.id != null) {
         actingTelegramId = Number(verified.user.id);
-        actingHandle = sanitizeHandle(verified.user.username || "") || "";
+        actingHandle = resolveArcadeDisplayHandle(verified.user, {});
         if (Number.isFinite(actingTelegramId) && actingTelegramId > 0) {
           const provisionedSession = await getOrCreateUser(
             actingTelegramId,
@@ -874,7 +874,7 @@ app.post("/api/session", async (req, res) => {
           : (body.telegramId != null ? body.telegramId : "")
       );
       if (Number.isFinite(localTelegramId) && localTelegramId > 0) {
-        const localHandle = sanitizeHandle(body.handle || "") || "test_user_99";
+        const localHandle = resolveArcadeDisplayHandle({}, body);
         const localReferredBy = extractReferralIdFromRequest(req);
         const localLedger = await getOrCreateUser(localTelegramId, localHandle, localReferredBy);
         if (localLedger && localLedger.ok && localLedger.user) {
@@ -959,10 +959,10 @@ app.post("/api/user-state", async (req, res) => {
     let handle = "";
     if (resolved.ok && Number.isFinite(resolved.telegramId) && resolved.telegramId > 0) {
       telegramId = Number(resolved.telegramId);
-      handle = sanitizeHandle(resolved.handle || "") || "";
+      handle = resolveArcadeDisplayHandle(resolved.user, body);
     } else if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0) {
       telegramId = bodyTelegramId;
-      handle = sanitizeHandle(body.handle || body.username || "") || "test_user_99";
+      handle = resolveArcadeDisplayHandle({}, body);
     } else {
       res.status(400).json({ ok: false, error: "telegram_id is required" });
       return;
@@ -1076,7 +1076,7 @@ app.post("/api/reward-ad", async (req, res) => {
     let handle = "";
     if (resolved.ok && Number.isFinite(resolved.telegramId) && resolved.telegramId > 0) {
       telegramId = Number(resolved.telegramId);
-      handle = sanitizeHandle(resolved.handle || "") || "";
+      handle = resolveArcadeDisplayHandle(resolved.user, body);
       if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0 && bodyTelegramId !== telegramId) {
         res.status(403).json({
           ok: false,
@@ -1088,7 +1088,7 @@ app.post("/api/reward-ad", async (req, res) => {
     } else if (Number.isFinite(bodyTelegramId) && bodyTelegramId > 0) {
       // Fallback for local testing when initData verification is unavailable.
       telegramId = bodyTelegramId;
-      handle = sanitizeHandle(body.handle || body.username || "") || "test_user_99";
+      handle = resolveArcadeDisplayHandle({}, body);
     } else {
       res.status(400).json({
         ok: false,
@@ -1778,7 +1778,7 @@ function resolveValidatedTelegramUser(req) {
     if (!Number.isFinite(telegramId) || telegramId <= 0) {
       return { ok: false };
     }
-    const handle = sanitizeHandle(verified.user.username || "") || "";
+    const handle = resolveArcadeDisplayHandle(verified.user, {});
     return {
       ok: true,
       user: verified.user,
@@ -4211,6 +4211,18 @@ function sanitizeHandle(value) {
   return cleaned.slice(0, 32);
 }
 
+function resolveArcadeDisplayHandle(user, body) {
+  const source = user && typeof user === "object" && !Array.isArray(user) ? user : {};
+  const payload = body && typeof body === "object" && !Array.isArray(body) ? body : {};
+  const publicUsername = sanitizeHandle(source.username || payload.username || "");
+  if (publicUsername) return publicUsername;
+  const firstNameHandle = sanitizeHandle(
+    source.first_name || payload.first_name || payload.handle || ""
+  );
+  if (firstNameHandle) return firstNameHandle;
+  return "ArcadePlayer";
+}
+
 function sanitizePersonName(value) {
   if (typeof value !== "string") return "";
   const cleaned = value.replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim();
@@ -5289,5 +5301,7 @@ module.exports = {
   applyModuleFieldAliases,
   trimFinalVerdictSection,
   compileUserPrompt,
+  resolveArcadeDisplayHandle,
+  sanitizeHandle,
   APP_MODULES
 };

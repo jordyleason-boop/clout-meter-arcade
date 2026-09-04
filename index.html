@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#050508" />
   <meta name="color-scheme" content="dark" />
   <title>Clout Meter</title>
-  <!-- verdict-fence-v4 -->
+  <!-- verdict-fence-v4 identity-fallback-v1 monetag-frame-bridge-v1 -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="//libtl.com/sdk.js" data-zone="11716521" data-sdk="show_11716521"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -2683,7 +2683,7 @@
         setArcadePackButtonsBusy(true);
         var statusEl = document.getElementById("arcade-coin-status");
         var telegramId = resolveCurrentUserId();
-        var username = typeof getTelegramUsername === "function" ? getTelegramUsername() : "";
+        var identity = arcadeIdentitySyncFields();
         if (statusEl) statusEl.textContent = "Inserting free coin…";
         var initData = getInitData();
         fetch("/api/reward-ad", {
@@ -2695,8 +2695,9 @@
           body: JSON.stringify({
             telegram_id: telegramId,
             telegramId: telegramId,
-            username: username,
-            handle: username,
+            username: identity.username,
+            handle: identity.handle,
+            first_name: identity.first_name,
             init_data: initData,
             source: "rewarded_video"
           })
@@ -2801,7 +2802,9 @@
             body: JSON.stringify({
               telegram_id: telegramId,
               token_amount: tokenAmount,
-              handle: getTelegramUsername() || "test_user_99",
+              username: arcadeIdentitySyncFields().username,
+              handle: arcadeIdentitySyncFields().handle,
+              first_name: arcadeIdentitySyncFields().first_name,
               init_data: getInitData()
             })
           });
@@ -4105,7 +4108,9 @@
             body: JSON.stringify({
               init_data: initData || "",
               telegram_id: telegramId,
-              handle: getTelegramUsername() || "test_user_99",
+              username: arcadeIdentitySyncFields().username,
+              handle: arcadeIdentitySyncFields().handle,
+              first_name: arcadeIdentitySyncFields().first_name,
               startapp: getTelegramStartParam(),
               start_param: getTelegramStartParam(),
               referral_id: getTelegramStartParam()
@@ -4134,7 +4139,9 @@
             body: JSON.stringify({
               init_data: initData || "",
               telegram_id: telegramId,
-              handle: getTelegramUsername() || "test_user_99",
+              username: arcadeIdentitySyncFields().username,
+              handle: arcadeIdentitySyncFields().handle,
+              first_name: arcadeIdentitySyncFields().first_name,
               startapp: startParam,
               start_param: startParam,
               referral_id: startParam
@@ -4153,7 +4160,9 @@
             body: JSON.stringify({
               init_data: initData || "",
               telegram_id: telegramId,
-              handle: getTelegramUsername() || "test_user_99",
+              username: arcadeIdentitySyncFields().username,
+              handle: arcadeIdentitySyncFields().handle,
+              first_name: arcadeIdentitySyncFields().first_name,
               startapp: getTelegramStartParam(),
               start_param: getTelegramStartParam(),
               referral_id: getTelegramStartParam()
@@ -4231,7 +4240,7 @@
           start_param: getTelegramStartParam(),
           telegram_id: resolveCurrentUserId(),
           challenger_id: resolveCurrentUserId(),
-          challenger_username: getTelegramUsername()
+          challenger_username: arcadeIdentitySyncFields().username
         };
         if (state.hub === "revenge_leaderboard") {
           var revengeSelf = formatScoreboardHandle(
@@ -6145,15 +6154,46 @@
         return getTelegramUserId();
       }
 
+      function resolveArcadeIdentity() {
+        let rawUsername = "EMPTY";
+        var firstName = "";
+        try {
+          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+            const tgUserObj = window.Telegram.WebApp.initDataUnsafe.user;
+            firstName = tgUserObj.first_name ? String(tgUserObj.first_name).trim() : "";
+            rawUsername = tgUserObj.username
+              ? String(tgUserObj.username).replace(/^@+/, "").trim()
+              : (tgUserObj.first_name ? String(tgUserObj.first_name).trim() : "ArcadePlayer");
+            if (!rawUsername) {
+              rawUsername = firstName ? firstName : "ArcadePlayer";
+            }
+          }
+        } catch (_identityErr) {
+          rawUsername = "EMPTY";
+        }
+        var cleanUsername = rawUsername && rawUsername !== "EMPTY" ? rawUsername : "test_user_99";
+        return {
+          rawUsername: rawUsername,
+          username: cleanUsername,
+          handle: cleanUsername,
+          first_name: firstName
+        };
+      }
+
+      function arcadeIdentitySyncFields() {
+        var identity = resolveArcadeIdentity();
+        return {
+          username: identity.username,
+          handle: identity.handle,
+          first_name: identity.first_name
+        };
+      }
+
       function getTelegramUsername() {
         try {
-          var unsafe = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe;
-          var user = unsafe && unsafe.user;
-          if (user && user.username) return String(user.username).replace(/^@+/, "");
-          if (user && user.first_name) return String(user.first_name);
-          return "";
+          return resolveArcadeIdentity().username;
         } catch (err) {
-          return "";
+          return "ArcadePlayer";
         }
       }
 
@@ -6535,13 +6575,103 @@
       }
       window.lockTargetOrWatchAd = lockTargetOrWatchAd;
 
+      function isolateMonetagRedirectBounds() {
+        if (window.__monetagFrameBridgeReady === true) {
+          return;
+        }
+        window.__monetagFrameBridgeReady = true;
+        window.__monetagAdSessionActive = false;
+
+        function openIsolatedBrowserSheet(url) {
+          var href = String(url == null ? "" : url).trim();
+          if (!href || href === "#" || href.indexOf("javascript:") === 0) {
+            return false;
+          }
+          try {
+            if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.openLink === "function") {
+              window.Telegram.WebApp.openLink(href, { try_instant_view: false });
+              return true;
+            }
+          } catch (_tgOpenErr) {}
+          try {
+            var nativeOpen = window.__arcadeNativeOpen;
+            if (typeof nativeOpen === "function") {
+              nativeOpen.call(window, href, "_blank", "noopener,noreferrer");
+              return true;
+            }
+            window.open(href, "_blank", "noopener,noreferrer");
+            return true;
+          } catch (_blankOpenErr) {}
+          return false;
+        }
+
+        function isExternalHttpUrl(url) {
+          try {
+            var parsed = new URL(String(url), window.location.href);
+            if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+            return parsed.origin !== window.location.origin;
+          } catch (_parseErr) {
+            return false;
+          }
+        }
+
+        if (typeof window.open === "function" && typeof window.__arcadeNativeOpen !== "function") {
+          window.__arcadeNativeOpen = window.open.bind(window);
+          window.open = function (url, target, features) {
+            if (window.__monetagAdSessionActive === true && isExternalHttpUrl(url)) {
+              openIsolatedBrowserSheet(url);
+              return null;
+            }
+            return window.__arcadeNativeOpen(url, target || "_blank", features);
+          };
+        }
+
+        try {
+          var nativeAssign = window.location.assign.bind(window.location);
+          var nativeReplace = window.location.replace.bind(window.location);
+          window.location.assign = function (url) {
+            if (window.__monetagAdSessionActive === true && isExternalHttpUrl(url)) {
+              openIsolatedBrowserSheet(url);
+              return;
+            }
+            return nativeAssign(url);
+          };
+          window.location.replace = function (url) {
+            if (window.__monetagAdSessionActive === true && isExternalHttpUrl(url)) {
+              openIsolatedBrowserSheet(url);
+              return;
+            }
+            return nativeReplace(url);
+          };
+        } catch (_locationHookErr) {}
+
+        document.addEventListener("click", function (event) {
+          if (window.__monetagAdSessionActive !== true) return;
+          var node = event.target;
+          var anchor = node && node.closest ? node.closest("a[href]") : null;
+          if (!anchor) return;
+          var href = anchor.getAttribute("href") || "";
+          if (!isExternalHttpUrl(href)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          openIsolatedBrowserSheet(href);
+        }, true);
+
+        if (typeof show_11716521 === "function") {
+          console.log("Monetag isolated frame bridge initialized.");
+        }
+      }
+
       function triggerPlatformVideoAd() {
+        isolateMonetagRedirectBounds();
         if (typeof show_11716521 !== "function") {
           alert("Monetag stream connecting... please tap again in a brief second!");
           return;
         }
 
+        window.__monetagAdSessionActive = true;
         // Launch the official unskippable native Monetag rewarded ad frame window overlay
+        // Click-outs are forced into a separate native browser sheet, not this Mini App webview.
         show_11716521()
           .then(() => {
             // Securely invoke our token database injector routine to grant the +1 coin
@@ -6552,9 +6682,13 @@
           })
           .catch((err) => {
             console.error("Monetag tracking exception:", err);
+          })
+          .then(function () {
+            window.__monetagAdSessionActive = false;
           });
       }
       window.triggerPlatformVideoAd = triggerPlatformVideoAd;
+      isolateMonetagRedirectBounds();
 
       document.querySelectorAll("[data-hub]").forEach(function (card) {
         card.addEventListener("click", function () {
