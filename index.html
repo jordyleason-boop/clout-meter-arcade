@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#050508" />
   <meta name="color-scheme" content="dark" />
   <title>Clout Meter</title>
-  <!-- verdict-fence-v4 identity-fallback-v1 monetag-frame-bridge-v1 -->
+  <!-- verdict-fence-v4 identity-fallback-v1 monetag-frame-bridge-v1 homescreen-pin-v1 -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="//libtl.com/sdk.js" data-zone="11716521" data-sdk="show_11716521"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -5931,6 +5931,25 @@
         }
       }
 
+      function promptTelegramHomeScreenShortcut() {
+        if (window.Telegram && window.Telegram.WebApp) {
+          // 1. Check if the user's current client app version supports pinning shortcuts
+          if (window.Telegram.WebApp.isVersionAtLeast && window.Telegram.WebApp.isVersionAtLeast('7.0')) {
+            // Check if the app has already been added to their sidebar to avoid annoying duplicates
+            if (window.Telegram.WebApp.checkHomeScreenStatus) {
+              window.Telegram.WebApp.checkHomeScreenStatus((status) => {
+                if (status === 'unsupported' || status === 'missed') {
+                  // Trigger the native modal tray asking them to pin the app for easy 1-click access later
+                  if (window.Telegram.WebApp.addToHomeScreen) {
+                    window.Telegram.WebApp.addToHomeScreen();
+                  }
+                }
+              });
+            }
+          }
+        }
+      }
+
       function initTelegram() {
         whenTelegramReady(function (webApp) {
           try {
@@ -5943,6 +5962,7 @@
             if (typeof webApp.enableVerticalSwipes === "function") {
               webApp.enableVerticalSwipes();
             }
+            promptTelegramHomeScreenShortcut();
             if (typeof webApp.onEvent === "function") {
               webApp.onEvent("chatRequested", onChatRequested);
             }

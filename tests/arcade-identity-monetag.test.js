@@ -29,6 +29,7 @@ has("function isolateMonetagRedirectBounds", "Monetag frame bridge");
 has("Monetag isolated frame bridge initialized.", "Monetag bridge log");
 has("try_instant_view: false", "Telegram external browser sheet");
 has("window.__monetagAdSessionActive = true", "ad session guard");
+has("function promptTelegramHomeScreenShortcut", "Telegram homescreen pin helper");
 assert.ok(!/data-zone="(?!11716521)\d+"/.test(html), "Monetag zone must stay 11716521");
 
 console.log("arcade-identity-monetag tests passed");
