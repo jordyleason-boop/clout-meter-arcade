@@ -9,12 +9,15 @@ function has(snippet, label) {
 
 has("function promptTelegramHomeScreenShortcut", "homescreen prompt helper");
 has("promptTelegramHomeScreenShortcut();", "called after viewport metrics");
-has("window.Telegram.WebApp.isVersionAtLeast('7.0')", "version gate");
-has("window.Telegram.WebApp.checkHomeScreenStatus", "duplicate-pin guard");
-has("status === 'unsupported' || status === 'missed'", "status filter");
-has("window.Telegram.WebApp.addToHomeScreen()", "native pin tray");
+has("webapp.isVersionAtLeast('8.0')", "Bot API 8.0+ gate");
+has("webapp.onEvent('homeScreenChecked'", "official event listener");
+has("eventData.status === 'missed' || eventData.status === 'unknown'", "status filter");
+has("webapp.addToHomeScreen()", "native pin tray");
+has("webapp.checkHomeScreenStatus();", "status poll without callback");
+has("Home screen asset polling error wrapper:", "safe poll wrapper");
 has("data-sdk=\"show_11716521\"", "Monetag hook preserved");
 has("fetch(\"/api/user-state\"", "user-state route preserved");
+assert.ok(html.indexOf("checkHomeScreenStatus((") === -1, "must not pass an inline callback to checkHomeScreenStatus");
 
 const expandIdx = html.indexOf("webApp.enableVerticalSwipes();");
 const pinIdx = html.indexOf("promptTelegramHomeScreenShortcut();");
