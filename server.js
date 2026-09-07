@@ -151,6 +151,44 @@ function telegramBotApiMethodUrl(method) {
   return `${TELEGRAM_BOT_API_BASE}/bot${token}/${method}`;
 }
 
+function resolveTelegramMiniAppUrl() {
+  const fromEnv = String(process.env.TELEGRAM_MINI_APP_URL || "").trim().replace(/\/+$/, "");
+  if (/^https:\/\/[^/\s]+/i.test(fromEnv)) return fromEnv;
+  if (/^https:\/\/[^/\s]+/i.test(FRONTEND_ORIGIN) && !/localhost/i.test(FRONTEND_ORIGIN)) {
+    return FRONTEND_ORIGIN;
+  }
+  return "https://arcade.onrender.com";
+}
+
+function isTelegramStartCommand(text) {
+  return typeof text === "string" && text.trim().startsWith("/start");
+}
+
+function buildTelegramStartWelcomePayload(chatId) {
+  const welcomeText = "🕹️ WELCOME TO THE CLOUT METER AI ARCADE!\n\nYour profile's digital footprint is a complete hazard and the scanner is fully armed. Your account has been credited with 3 FREE launch scan tokens.\n\nTap the button below to launch the machine viewport and start roasting your squad!";
+  return {
+    chat_id: chatId,
+    text: welcomeText,
+    parse_mode: "Markdown",
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "🕹️ LAUNCH AI SCANNERS",
+            web_app: { url: resolveTelegramMiniAppUrl() }
+          }
+        ],
+        [
+          {
+            text: "📊 Check Global Leaderboard",
+            callback_data: "menu_leaderboard"
+          }
+        ]
+      ]
+    }
+  };
+}
+
 const telegramWebhookJson = express.json({
   limit: LIMITS.jsonBytes,
   strict: true
@@ -3979,6 +4017,64 @@ async function handleTelegramWebhook(req, res) {
       return res.json({ success: true });
     }
 
+    if (req.body.message && req.body.message.text && req.body.message.text.startsWith("/start")) {
+      const chatId = req.body.message.chat && req.body.message.chat.id;
+      if (chatId == null) {
+        return res.json({ success: true });
+      }
+      const welcomePayload = buildTelegramStartWelcomePayload(chatId);
+      try {
+        await fetch(telegramBotApiMethodUrl("sendMessage"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(welcomePayload)
+        });
+        return res.json({ success: true });
+      } catch (err) {
+        console.error("Failed to execute native text interaction loop:", err);
+      }
+    }
+
+    if (update.callback_query && String(update.callback_query.data || "") === "menu_leaderboard") {
+      try {
+        const callbackId = update.callback_query.id;
+        const chatId = update.callback_query.message && update.callback_query.message.chat
+          ? update.callback_query.message.chat.id
+          : (update.callback_query.from && update.callback_query.from.id);
+        await fetch(telegramBotApiMethodUrl("answerCallbackQuery"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            callback_query_id: callbackId,
+            text: "Open the arcade to view the live leaderboard."
+          })
+        });
+        if (chatId != null) {
+          await fetch(telegramBotApiMethodUrl("sendMessage"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: "📊 The Global Leaderboard lives inside the arcade. Tap below to launch the machine.",
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    {
+                      text: "🕹️ LAUNCH AI SCANNERS",
+                      web_app: { url: resolveTelegramMiniAppUrl() }
+                    }
+                  ]
+                ]
+              }
+            })
+          });
+        }
+      } catch (err) {
+        console.error("Failed to execute native text interaction loop:", err);
+      }
+      return res.json({ success: true });
+    }
+
     return res.json({ success: true });
   } catch (err) {
     console.error("Payment loop validation exception:", err);
@@ -5303,5 +5399,10 @@ module.exports = {
   compileUserPrompt,
   resolveArcadeDisplayHandle,
   sanitizeHandle,
+  telegramBotApiMethodUrl,
+  resolveTelegramMiniAppUrl,
+  isTelegramStartCommand,
+  buildTelegramStartWelcomePayload,
+  handleTelegramWebhook,
   APP_MODULES
 };
