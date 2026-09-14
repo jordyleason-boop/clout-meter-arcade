@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#050508" />
   <meta name="color-scheme" content="dark" />
   <title>Clout Meter</title>
-  <!-- verdict-fence-v4 identity-fallback-v1 monetag-frame-bridge-v1 homescreen-pin-v2 -->
+  <!-- verdict-fence-v4 identity-fallback-v1 monetag-frame-bridge-v1 homescreen-pin-v2 scan-myself-v1 -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="//libtl.com/sdk.js" data-zone="11716521" data-sdk="show_11716521"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -1055,6 +1055,9 @@
       <div id="standard-target-panel">
       <label for="target-input" data-i18n="targetLabel" class="mb-2 block text-xs font-medium uppercase tracking-wider text-white/45">Target</label>
       <input id="target-input" type="text" maxlength="80" data-i18n-placeholder="inputPlaceholder" placeholder="Enter @username or text description" class="mb-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none ring-gold/40 placeholder:text-white/30 focus:border-gold/40 focus:ring-2" />
+      <button id="scan-me-btn" onclick="executeSelfScan()" type="button" class="mt-2 w-full py-1.5 bg-purple-900 border border-purple-500 rounded text-purple-200 font-mono text-xs font-black uppercase tracking-wider hover:bg-purple-950 transition-colors duration-200">
+        ⚡ QUICK SCAN MYSELF
+      </button>
       <p id="target-locked-tag" class="mb-4 hidden rounded-full border border-cyan-300/40 bg-cyan-400/10 px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200 shadow-[0_0_14px_rgba(0,240,255,0.28)]"></p>
       </div>
 
@@ -6592,6 +6595,43 @@
           window.open(url, "_blank");
         });
       }
+
+      function executeSelfScan() {
+        // Read the native user identity variables parsed during the initial Telegram WebApp boot load sequence
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+          const selfUsername = window.Telegram.WebApp.initDataUnsafe.user.username;
+          const selfFirstName = window.Telegram.WebApp.initDataUnsafe.user.first_name;
+
+          // Select their handle prioritizing their public username, or falling back to first name
+          const targetHandle = selfUsername ? selfUsername : (selfFirstName ? selfFirstName : "");
+
+          if (targetHandle) {
+            const inputField = document.getElementById("target-input") || document.getElementById("username-input") || document.querySelector("#standard-target-panel input[type=\"text\"]") || document.querySelector("input[type=\"text\"]");
+            if (inputField) {
+              inputField.value = targetHandle;
+              if (typeof state === "object" && state) {
+                state.pickedUsername = selfUsername ? String(selfUsername).replace(/^@+/, "") : "";
+                state.pickedFirstName = selfFirstName ? String(selfFirstName) : "";
+                state.currentTarget = targetHandle;
+              }
+              // Dynamically trigger your existing primary form search/roast submission callback function immediately
+              if (typeof startRoastScan === "function") {
+                startRoastScan(targetHandle);
+              } else if (typeof handleScanSubmit === "function") {
+                handleScanSubmit();
+              } else if (typeof lockTargetOrWatchAd === "function") {
+                lockTargetOrWatchAd();
+              } else if (typeof lockTarget === "function") {
+                lockTarget();
+              }
+            }
+          }
+        } else {
+          // Browser sandbox fallback safety guard context
+          alert("Telegram profile data context unavailable in standard browser viewports.");
+        }
+      }
+      window.executeSelfScan = executeSelfScan;
 
       function lockTargetOrWatchAd() {
         var currentTokens = Number(state.credits_balance) || 0;
