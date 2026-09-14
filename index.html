@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#050508" />
   <meta name="color-scheme" content="dark" />
   <title>Clout Meter</title>
-  <!-- verdict-fence-v4 identity-fallback-v1 monetag-frame-bridge-v1 homescreen-pin-v2 scan-myself-v1 -->
+  <!-- verdict-fence-v4 identity-fallback-v1 monetag-frame-bridge-v1 homescreen-pin-v2 scan-myself-v1 instant-self-roast-v1 -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="//libtl.com/sdk.js" data-zone="11716521" data-sdk="show_11716521"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -992,6 +992,11 @@
         <li>📸 <strong class="text-white">3. Share the Damage:</strong> Save the receipt image straight to your device photos to fire back at squads!</li>
       </ul>
     </section>
+    <div class="w-full px-4 mb-4">
+      <button id="instant-self-roast-btn" onclick="executeImmediateSelfRoast()" type="button" class="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 border-2 border-cyan-400 rounded-lg text-white font-mono text-xs font-black uppercase tracking-widest shadow-[0_0_15px_rgba(34,211,238,0.5)] hover:scale-[1.01] transition-transform duration-200 animate-pulse">
+        ⚡ 1-CLICK INSTANT LAUNCH: ROAST MY OWN PROFILE NOW
+      </button>
+    </div>
     <section id="hub-grid" class="grid w-full grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
       <button type="button" data-hub="profile_roaster" class="hub-card group relative overflow-hidden rounded-3xl border border-fuchsia-400/30 p-5 text-start md:min-h-[280px] md:p-6">
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-orange-500/20 blur-2xl transition group-hover:bg-orange-400/30"></div>
@@ -6595,6 +6600,67 @@
           window.open(url, "_blank");
         });
       }
+
+      function openModule(moduleId) {
+        var mapped = {
+          roaster: "profile_roaster",
+          "profile-roaster": "profile_roaster",
+          aura: "aura_judge",
+          revenge: "revenge_leaderboard"
+        };
+        var hubId = mapped[moduleId] || String(moduleId || "profile_roaster").replace(/-/g, "_");
+        openMiniGameFromCabinet(hubId);
+      }
+
+      function toggleView(viewId) {
+        openModule(viewId);
+      }
+
+      function executeImmediateSelfRoast() {
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+          const selfUsername = window.Telegram.WebApp.initDataUnsafe.user.username;
+          const selfFirstName = window.Telegram.WebApp.initDataUnsafe.user.first_name;
+          const targetHandle = selfUsername ? selfUsername : (selfFirstName ? selfFirstName : "");
+
+          if (targetHandle) {
+            // 1. Programmatically navigate/switch views straight into the Profile Roaster sub-module layout panel
+            if (typeof openModule === "function") {
+              openModule("roaster");
+            } else if (typeof toggleView === "function") {
+              toggleView("profile-roaster");
+            } else if (typeof openMiniGameFromCabinet === "function") {
+              openMiniGameFromCabinet("profile_roaster");
+            }
+
+            // 2. Automatically populate the interior input field and fire the primary execution scan instantly
+            setTimeout(function () {
+              const inputField = document.getElementById("target-input") || document.getElementById("username-input") || document.querySelector("#standard-target-panel input[type=\"text\"]") || document.querySelector("#profile-roaster input[type=\"text\"]");
+              if (inputField) {
+                inputField.value = targetHandle;
+                if (typeof state === "object" && state) {
+                  state.pickedUsername = selfUsername ? String(selfUsername).replace(/^@+/, "") : "";
+                  state.pickedFirstName = selfFirstName ? String(selfFirstName) : "";
+                  state.currentTarget = targetHandle;
+                }
+                if (typeof startRoastScan === "function") {
+                  startRoastScan(targetHandle);
+                } else if (typeof handleScanSubmit === "function") {
+                  handleScanSubmit();
+                } else if (typeof lockTargetOrWatchAd === "function") {
+                  lockTargetOrWatchAd();
+                } else if (typeof lockTarget === "function") {
+                  lockTarget();
+                }
+              }
+            }, 150); // Small delay ensures the sub-panel DOM nodes are fully painted before injecting
+          }
+        } else {
+          alert("Telegram profile data context unavailable in standard browser sandbox environments.");
+        }
+      }
+      window.executeImmediateSelfRoast = executeImmediateSelfRoast;
+      window.openModule = openModule;
+      window.toggleView = toggleView;
 
       function executeSelfScan() {
         // Read the native user identity variables parsed during the initial Telegram WebApp boot load sequence
