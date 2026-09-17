@@ -177,12 +177,6 @@ function buildTelegramStartWelcomePayload(chatId) {
             text: "🕹️ LAUNCH AI SCANNERS",
             web_app: { url: resolveTelegramMiniAppUrl() }
           }
-        ],
-        [
-          {
-            text: "📊 Check Global Leaderboard",
-            callback_data: "menu_leaderboard"
-          }
         ]
       ]
     }
