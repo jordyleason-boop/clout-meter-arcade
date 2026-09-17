@@ -1589,8 +1589,8 @@ if (require.main === module) {
     try {
       const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
       const token = process.env.TELEGRAM_BOT_TOKEN;
-      const renderUrl = "https://onrender.com";
-      
+      const renderUrl = "https://clout" + "-meter" + "://onrender.com";
+          
       console.log("Forcing background webhook synchronization...");
       const response = await fetch(`https://telegram.org{token}/setWebhook?url=${renderUrl}`);
       const data = await response.json();
