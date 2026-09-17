@@ -1582,33 +1582,28 @@ app.use((err, _req, res, _next) => {
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`${GLOBAL_CONFIG.engine_name || "Clout Meter"} API listening on port ${PORT}`);
-    if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`${GLOBAL_CONFIG.engine_name || "Clout Meter"} API listening on port ${PORT}`);
-
-    // FORCED COMPLIANCE HOOK: Automatically forces Telegram webhooks to register at boot layer
-    const autoInitWebhook = async () => {
-      try {
-        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-        const token = process.env.TELEGRAM_BOT_TOKEN;
-        const renderUrl = "https://onrender.com";
-        
-        console.log("Forcing background webhook synchronization...");
-        const response = await fetch(`https://telegram.org{token}/setWebhook?url=${renderUrl}`);
-        const data = await response.json();
-        console.log("Telegram ledger status update:", JSON.stringify(data));
-      } catch (err) {
-        console.error("Auto webhook configuration exception:", err);
-      }
-    };
-
-    // Execute synchronization sequence instantly 5 seconds after server activation
-    setTimeout(autoInitWebhook, 5000); 
-
   });
+
+  // FORCED COMPLIANCE HOOK: Runs completely outside the port listener function to prevent EADDRINUSE crashes
+  const autoInitWebhook = async () => {
+    try {
+      const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+      const token = process.env.TELEGRAM_BOT_TOKEN;
+      const renderUrl = "https://onrender.com";
+      
+      console.log("Forcing background webhook synchronization...");
+      const response = await fetch(`https://telegram.org{token}/setWebhook?url=${renderUrl}`);
+      const data = await response.json();
+      console.log("Telegram ledger status update:", JSON.stringify(data));
+    } catch (err) {
+      console.error("Auto webhook configuration exception:", err);
+    }
+  };
+
+  // Safe background trigger executed 5 seconds after application boot
+  setTimeout(autoInitWebhook, 5000);
 }
-  });
-}
+
 
 function loadEngineConfig() {
   const configPath = path.join(__dirname, "config.json");
