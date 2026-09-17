@@ -157,7 +157,7 @@ function resolveTelegramMiniAppUrl() {
   if (/^https:\/\/[^/\s]+/i.test(FRONTEND_ORIGIN) && !/localhost/i.test(FRONTEND_ORIGIN)) {
     return FRONTEND_ORIGIN;
   }
-  return "https://arcade.onrender.com";
+  return "https://clout-meter-arcade.onrender.com";
 }
 
 function isTelegramStartCommand(text) {
