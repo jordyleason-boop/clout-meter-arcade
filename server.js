@@ -1585,23 +1585,34 @@ if (require.main === module) {
   });
 
   // FORCED COMPLIANCE HOOK: Runs completely outside the port listener function to prevent EADDRINUSE crashes
-  const autoInitWebhook = async () => {
-    try {
-      const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-      const token = process.env.TELEGRAM_BOT_TOKEN;
-      const renderUrl = "https://clout" + "-meter" + "://onrender.com";
-          
-      console.log("Forcing background webhook synchronization...");
-      const response = await fetch(`https://telegram.org{token}/setWebhook?url=${renderUrl}`);
-      const data = await response.json();
-      console.log("Telegram ledger status update:", JSON.stringify(data));
-    } catch (err) {
-      console.error("Auto webhook configuration exception:", err);
+ const autoInitWebhook = async () => {
+  try {
+    const token = String(process.env.TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN || "").trim();
+    if (!/^\d+:[A-Za-z0-9_-]+$/.test(token)) {
+      console.error("Skipping webhook sync: TELEGRAM_BOT_TOKEN missing or malformed");
+      return;
     }
-  };
 
-  // Safe background trigger executed 5 seconds after application boot
-  setTimeout(autoInitWebhook, 5000);
+    const webhookUrl = resolveTelegramWebhookUrl();
+    const payload = {
+      url: webhookUrl,
+      allowed_updates: ["message", "edited_message", "callback_query", "pre_checkout_query"],
+      drop_pending_updates: true
+    };
+    const secret = String(process.env.TELEGRAM_WEBHOOK_SECRET || "").trim();
+    if (secret) payload.secret_token = secret;
+
+    const response = await fetch(telegramBotApiMethodUrl("setWebhook"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    console.log("setWebhook ->", webhookUrl, JSON.stringify(data));
+  } catch (err) {
+    console.error("Auto webhook configuration exception:", err);
+  }
+};
 }
 
 
